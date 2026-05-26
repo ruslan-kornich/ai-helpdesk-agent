@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from app.agent.pipeline import AgentResult
-from app.models.enums import Channel
+from app.models.enums import Category, Channel, MessageRole, Priority, Sentiment
 from app.models.message import Message
 from app.models.ticket import Ticket
 from app.repositories.ticket_repository import TicketRepository
@@ -20,8 +20,6 @@ class TicketService:
     async def get_or_create_session(
         self, channel: Channel, client_id: str, window_minutes: int
     ) -> Ticket:
-        from app.models.enums import Category, Priority, Sentiment
-
         active = await self.ticket_repository.get_active(client_id, channel, window_minutes)
         if active is not None:
             return active
@@ -54,7 +52,7 @@ class TicketService:
         ticket.conversation_snippet = build_snippet(messages)
         if not ticket.summary:
             first_client = next(
-                (message.text for message in messages if message.role.value == "client"), ""
+                (message.text for message in messages if message.role == MessageRole.CLIENT), ""
             )
             ticket.summary = first_client[:200]
         metadata = dict(ticket.ticket_metadata or {})
