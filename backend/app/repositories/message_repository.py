@@ -10,10 +10,6 @@ class MessageRepository(SQLAlchemyRepository[Message]):
     model = Message
 
     async def list_for_ticket(self, ticket_id: str) -> Sequence[Message]:
-        statement = (
-            select(Message)
-            .where(Message.ticket_id == ticket_id)
-            .order_by(Message.id.asc())
-        )
+        statement = select(Message).where(Message.ticket_id == ticket_id).order_by(Message.id.asc())
         result = await self.session.execute(statement)
         return result.scalars().all()

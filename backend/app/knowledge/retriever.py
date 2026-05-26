@@ -4,7 +4,23 @@ from pathlib import Path
 
 _FAQ_DIR = Path(__file__).parent / "faq"
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
-_STOP_WORDS = {"the", "a", "an", "to", "do", "i", "can", "how", "where", "is", "of", "my", "see", "in", "on"}
+_STOP_WORDS = {
+    "the",
+    "a",
+    "an",
+    "to",
+    "do",
+    "i",
+    "can",
+    "how",
+    "where",
+    "is",
+    "of",
+    "my",
+    "see",
+    "in",
+    "on",
+}
 
 
 def _tokenize(text: str) -> set[str]:

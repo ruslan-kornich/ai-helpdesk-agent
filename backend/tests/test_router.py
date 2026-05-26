@@ -10,7 +10,9 @@ WEEKEND = datetime(2026, 5, 30, 10, 0)
 CONFIG = RouterConfig(confidence_threshold=0.55, working_hours_start=9, working_hours_end=18)
 
 
-def _analysis(category: Category, confidence: float = 0.9, sentiment: Sentiment = Sentiment.NEUTRAL) -> AnalysisResult:
+def _analysis(
+    category: Category, confidence: float = 0.9, sentiment: Sentiment = Sentiment.NEUTRAL
+) -> AnalysisResult:
     return AnalysisResult(category=category, confidence=confidence, sentiment=sentiment)
 
 

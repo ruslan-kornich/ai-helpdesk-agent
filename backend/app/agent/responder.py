@@ -6,9 +6,7 @@ from app.agent.router import AgentAction, RouterDecision
 from app.knowledge.retriever import Retriever
 from app.models.enums import Category
 
-_FALLBACK_HOWTO_REPLY = (
-    "Thanks for reaching out. I am passing your question to a specialist who will follow up shortly."
-)
+_FALLBACK_HOWTO_REPLY = "Thanks for reaching out. I am passing your question to a specialist who will follow up shortly."
 
 _CANNED_REPLIES: dict[Category, str] = {
     Category.BILLING: (
@@ -60,7 +58,9 @@ class Responder:
             return _FALLBACK_HOWTO_REPLY
         context = "\n\n---\n\n".join(chunks)
         system_prompt = (
-            f"{persona}\n\n{RESPONDER_HOWTO_SYSTEM_PROMPT}" if persona else RESPONDER_HOWTO_SYSTEM_PROMPT
+            f"{persona}\n\n{RESPONDER_HOWTO_SYSTEM_PROMPT}"
+            if persona
+            else RESPONDER_HOWTO_SYSTEM_PROMPT
         )
         user_prompt = RESPONDER_HOWTO_USER_TEMPLATE.format(context=context, text=text)
         try:

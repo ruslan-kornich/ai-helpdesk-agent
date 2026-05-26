@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -47,7 +47,7 @@ async def test_active_within_window_is_reused(session):
 async def test_stale_ticket_outside_window_is_not_active(session):
     repository = TicketRepository(session)
     stale = _make_ticket("client-1")
-    stale.updated_at = datetime.now(timezone.utc) - timedelta(minutes=45)
+    stale.updated_at = datetime.now(UTC) - timedelta(minutes=45)
     await repository.add(stale)
     active = await repository.get_active(
         client_id="client-1", channel=Channel.TELEGRAM, window_minutes=30
@@ -71,10 +71,20 @@ async def test_messages_for_ticket_ordered(session):
     ticket = await ticket_repository.add(_make_ticket("client-1"))
     message_repository = MessageRepository(session)
     await message_repository.add(
-        Message(ticket_id=ticket.ticket_id, role=MessageRole.CLIENT, text="first", channel=Channel.TELEGRAM)
+        Message(
+            ticket_id=ticket.ticket_id,
+            role=MessageRole.CLIENT,
+            text="first",
+            channel=Channel.TELEGRAM,
+        )
     )
     await message_repository.add(
-        Message(ticket_id=ticket.ticket_id, role=MessageRole.AGENT, text="second", channel=Channel.TELEGRAM)
+        Message(
+            ticket_id=ticket.ticket_id,
+            role=MessageRole.AGENT,
+            text="second",
+            channel=Channel.TELEGRAM,
+        )
     )
     history = await message_repository.list_for_ticket(ticket.ticket_id)
     assert [message.text for message in history] == ["first", "second"]

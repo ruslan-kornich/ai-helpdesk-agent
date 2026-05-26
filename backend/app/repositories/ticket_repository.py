@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -13,7 +13,7 @@ class TicketRepository(SQLAlchemyRepository[Ticket]):
     async def get_active(
         self, client_id: str, channel: Channel, window_minutes: int
     ) -> Ticket | None:
-        threshold = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+        threshold = datetime.now(UTC) - timedelta(minutes=window_minutes)
         statement = (
             select(Ticket)
             .where(Ticket.client_id == client_id)

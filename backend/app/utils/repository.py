@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,10 +7,8 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.config.db import Base
 
-ModelType = TypeVar("ModelType", bound=Base)
 
-
-class SQLAlchemyRepository(Generic[ModelType]):
+class SQLAlchemyRepository[ModelType: Base]:
     model: type[ModelType]
 
     def __init__(self, session: AsyncSession) -> None:
@@ -41,9 +39,7 @@ class SQLAlchemyRepository(Generic[ModelType]):
         return result.scalars().all()
 
     async def count_all(self, **filters: Any) -> int:
-        statement = self._apply_filters(
-            select(func.count()).select_from(self.model), filters
-        )
+        statement = self._apply_filters(select(func.count()).select_from(self.model), filters)
         result = await self.session.execute(statement)
         return int(result.scalar_one())
 

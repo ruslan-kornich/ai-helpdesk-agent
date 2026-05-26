@@ -1,13 +1,9 @@
 import functools
 from collections.abc import Awaitable, Callable
-from typing import ParamSpec, TypeVar
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from loguru import logger
-
-ParamsType = ParamSpec("ParamsType")
-ReturnType = TypeVar("ReturnType")
 
 
 class ApplicationError(Exception):
@@ -22,17 +18,17 @@ class BusinessError(ApplicationError):
         super().__init__(message, status_code)
 
 
-async def business_exception_handler(
-    request: Request, exception: BusinessError
-) -> JSONResponse:
-    logger.warning("BusinessError on {path}: {message}", path=request.url.path, message=exception.message)
+async def business_exception_handler(request: Request, exception: BusinessError) -> JSONResponse:
+    logger.warning(
+        "BusinessError on {path}: {message}", path=request.url.path, message=exception.message
+    )
     return JSONResponse(
         status_code=exception.status_code,
         content={"detail": exception.message},
     )
 
 
-def catch_errors(
+def catch_errors[**ParamsType, ReturnType](
     func: Callable[ParamsType, Awaitable[ReturnType]],
 ) -> Callable[ParamsType, Awaitable[ReturnType | None]]:
     @functools.wraps(func)
