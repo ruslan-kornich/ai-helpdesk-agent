@@ -1,9 +1,21 @@
+from enum import StrEnum
+
 from loguru import logger
 from pydantic import BaseModel, Field
 
 from app.agent.llm import LLMProvider
 from app.agent.prompts import ANALYZER_SYSTEM_PROMPT, ANALYZER_USER_TEMPLATE
 from app.models.enums import Category, Sentiment
+
+
+class LLMCategory(StrEnum):
+    HOW_TO = "how_to"
+    BILLING = "billing"
+    DELIVERY_ISSUE = "delivery_issue"
+    COMMERCIAL = "commercial"
+    OUTAGE = "outage"
+    UNKNOWN = "unknown"
+    OTHER = "other"
 
 
 class ExtractedEntities(BaseModel):
@@ -14,6 +26,13 @@ class ExtractedEntities(BaseModel):
     error_text: str | None = None
     ip: str | None = None
     account: str | None = None
+
+
+class LLMAnalysis(BaseModel):
+    category: LLMCategory
+    confidence: float = Field(ge=0.0, le=1.0)
+    sentiment: Sentiment
+    entities: ExtractedEntities = Field(default_factory=ExtractedEntities)
 
 
 class AnalysisResult(BaseModel):
@@ -30,8 +49,14 @@ class Analyzer:
     async def analyze(self, text: str, history: str) -> AnalysisResult:
         user_prompt = ANALYZER_USER_TEMPLATE.format(history=history or "(none)", text=text)
         try:
-            return await self.llm.complete_structured(
-                ANALYZER_SYSTEM_PROMPT, user_prompt, AnalysisResult
+            llm_result = await self.llm.complete_structured(
+                ANALYZER_SYSTEM_PROMPT, user_prompt, LLMAnalysis
+            )
+            return AnalysisResult(
+                category=Category(llm_result.category.value),
+                confidence=llm_result.confidence,
+                sentiment=llm_result.sentiment,
+                entities=llm_result.entities,
             )
         except Exception as error:
             logger.exception("Analyzer LLM call failed: {error}", error=error)

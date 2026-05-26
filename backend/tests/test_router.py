@@ -1,14 +1,12 @@
 from datetime import datetime
 
-import pytest
-
 from app.agent.analyzer import AnalysisResult
 from app.agent.router import AgentAction, RouterConfig, decide, is_after_hours
 from app.models.enums import Category, EscalationTarget, Priority, Sentiment
 
-BUSINESS_HOURS = datetime(2026, 5, 27, 10, 0)   # Wednesday 10:00
-NIGHT = datetime(2026, 5, 27, 2, 0)             # Wednesday 02:00
-WEEKEND = datetime(2026, 5, 30, 10, 0)          # Saturday 10:00
+BUSINESS_HOURS = datetime(2026, 5, 27, 10, 0)
+NIGHT = datetime(2026, 5, 27, 2, 0)
+WEEKEND = datetime(2026, 5, 30, 10, 0)
 CONFIG = RouterConfig(confidence_threshold=0.55, working_hours_start=9, working_hours_end=18)
 
 
