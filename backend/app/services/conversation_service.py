@@ -3,6 +3,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.settings import get_settings
 from app.context import AppContext
 from app.models.enums import Channel, MessageRole
 from app.models.message import Message
@@ -11,8 +12,6 @@ from app.repositories.message_repository import MessageRepository
 from app.schemas.ticket import TicketRead
 from app.services.ticket_service import TicketService
 from app.utils.time import local_now
-
-_SESSION_WINDOW_MINUTES = 30
 
 
 def build_history(messages: Sequence[Message]) -> str:
@@ -31,6 +30,7 @@ class ConversationService:
         self.ticket_service = ticket_service
         self.message_repository = message_repository
         self.context = context
+        self.session_window_minutes: int = get_settings().SESSION_WINDOW_MINUTES
 
     async def handle_incoming(
         self,
@@ -40,7 +40,7 @@ class ConversationService:
         channel_metadata: dict[str, Any] | None = None,
     ) -> tuple[str, Ticket]:
         ticket = await self.ticket_service.get_or_create_session(
-            channel, client_id, _SESSION_WINDOW_MINUTES
+            channel, client_id, self.session_window_minutes
         )
         prior = await self.message_repository.list_for_ticket(ticket.ticket_id)
         history = build_history(prior)
