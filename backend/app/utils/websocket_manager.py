@@ -17,7 +17,7 @@ class WebSocketManager:
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         stale: list[WebSocket] = []
-        for websocket in self.connections:
+        for websocket in list(self.connections):
             try:
                 await websocket.send_json(message)
             except Exception as error:
