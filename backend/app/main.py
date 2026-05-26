@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -108,6 +108,8 @@ async def lifespan(app: FastAPI):
     stop_event.set()
     if polling_task is not None:
         polling_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await polling_task
     await app.state.database_manager.dispose()
 
 
