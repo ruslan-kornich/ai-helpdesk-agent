@@ -1,9 +1,13 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
+from fastapi_pagination import Page
+from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy import select
 
 from app.models.enums import Channel
 from app.models.ticket import Ticket
+from app.schemas.ticket import TicketRead
 from app.utils.repository import SQLAlchemyRepository
 
 
@@ -24,3 +28,11 @@ class TicketRepository(SQLAlchemyRepository[Ticket]):
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+
+    async def paginate_filtered(self, filters: dict[str, Any]) -> Page[TicketRead]:
+        statement = self._apply_filters(select(Ticket), filters).order_by(Ticket.created_at.desc())
+        return await paginate(
+            self.session,
+            statement,
+            transformer=lambda rows: [TicketRead.model_validate(row) for row in rows],
+        )
