@@ -2,8 +2,10 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.models.enums import Category, Channel, Priority, Sentiment
+from app.models.enums import Category, Channel, MessageRole, Priority, Sentiment
+from app.models.message import Message
 from app.models.ticket import Ticket
+from app.repositories.message_repository import MessageRepository
 from app.repositories.ticket_repository import TicketRepository
 
 
@@ -61,11 +63,6 @@ async def test_active_is_channel_scoped(session):
         client_id="client-1", channel=Channel.WHATSAPP, window_minutes=30
     )
     assert active is None
-
-
-from app.models.enums import MessageRole
-from app.models.message import Message
-from app.repositories.message_repository import MessageRepository
 
 
 @pytest.mark.asyncio

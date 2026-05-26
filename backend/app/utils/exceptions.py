@@ -1,11 +1,12 @@
 import functools
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from loguru import logger
 
+ParamsType = ParamSpec("ParamsType")
 ReturnType = TypeVar("ReturnType")
 
 
@@ -32,10 +33,10 @@ async def business_exception_handler(
 
 
 def catch_errors(
-    func: Callable[..., Awaitable[ReturnType]],
-) -> Callable[..., Awaitable[ReturnType | None]]:
+    func: Callable[ParamsType, Awaitable[ReturnType]],
+) -> Callable[ParamsType, Awaitable[ReturnType | None]]:
     @functools.wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> ReturnType | None:
+    async def wrapper(*args: ParamsType.args, **kwargs: ParamsType.kwargs) -> ReturnType | None:
         try:
             return await func(*args, **kwargs)
         except BusinessError:
