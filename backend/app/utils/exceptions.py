@@ -1,6 +1,6 @@
 import functools
 from collections.abc import Awaitable, Callable
-from typing import Any, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
