@@ -6,25 +6,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "sqlite+aiosqlite:///:memory:"
+    DATABASE_URL: str = "postgresql+asyncpg://gatum:gatum@db:5432/gatum"
 
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o"
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
 
-    telegram_bot_token: str = ""
+    TELEGRAM_BOT_TOKEN: str = ""
 
-    zendesk_subdomain: str = ""
-    zendesk_email: str = ""
-    zendesk_api_token: str = ""
+    ZENDESK_SUBDOMAIN: str = ""
+    ZENDESK_EMAIL: str = ""
+    ZENDESK_API_TOKEN: str = ""
 
-    working_hours_start: int = 9
-    working_hours_end: int = 18
-    timezone: str = "Europe/Kyiv"
+    WORKING_HOURS_START: int = 9
+    WORKING_HOURS_END: int = 18
+    TIMEZONE: str = "Europe/Kyiv"
 
-    support_lead_channel: str = ""
+    SUPPORT_LEAD_CHANNEL: str = ""
 
-    session_window_minutes: int = 30
-    confidence_threshold: float = 0.55
+    SESSION_WINDOW_MINUTES: int = 30
+    CONFIDENCE_THRESHOLD: float = 0.55
 
 
 @lru_cache

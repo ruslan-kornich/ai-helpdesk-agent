@@ -34,4 +34,4 @@ class DatabaseManager:
 
 
 def build_database_manager() -> DatabaseManager:
-    return DatabaseManager(get_settings().database_url)
+    return DatabaseManager(get_settings().DATABASE_URL)
