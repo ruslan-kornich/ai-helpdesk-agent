@@ -61,3 +61,23 @@ async def test_active_is_channel_scoped(session):
         client_id="client-1", channel=Channel.WHATSAPP, window_minutes=30
     )
     assert active is None
+
+
+from app.models.enums import MessageRole
+from app.models.message import Message
+from app.repositories.message_repository import MessageRepository
+
+
+@pytest.mark.asyncio
+async def test_messages_for_ticket_ordered(session):
+    ticket_repository = TicketRepository(session)
+    ticket = await ticket_repository.add(_make_ticket("client-1"))
+    message_repository = MessageRepository(session)
+    await message_repository.add(
+        Message(ticket_id=ticket.ticket_id, role=MessageRole.CLIENT, text="first", channel=Channel.TELEGRAM)
+    )
+    await message_repository.add(
+        Message(ticket_id=ticket.ticket_id, role=MessageRole.AGENT, text="second", channel=Channel.TELEGRAM)
+    )
+    history = await message_repository.list_for_ticket(ticket.ticket_id)
+    assert [message.text for message in history] == ["first", "second"]
