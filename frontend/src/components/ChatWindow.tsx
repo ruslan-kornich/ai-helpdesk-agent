@@ -4,12 +4,14 @@ import type { Message } from "../types";
 export default function ChatWindow({
   messages,
   emptyText = "No messages yet.",
+  heightClass = "max-h-[58vh]",
 }: {
   messages: Message[];
   emptyText?: string;
+  heightClass?: string;
 }) {
   return (
-    <div className="flex max-h-[58vh] flex-col gap-4 overflow-auto px-1 py-1 scrollbar-slim">
+    <div className={`flex ${heightClass} flex-col gap-4 overflow-auto px-1 py-1 scrollbar-slim`}>
       {messages.map((message) => {
         if (message.role === "system") {
           return (
@@ -45,7 +47,7 @@ export default function ChatWindow({
         );
       })}
       {messages.length === 0 && (
-        <div className="grid place-items-center gap-2 py-12 text-center text-sm text-muted">
+        <div className="m-auto grid place-items-center gap-2 py-12 text-center text-sm text-muted">
           <Bot size={26} strokeWidth={1.8} className="text-line" />
           {emptyText}
         </div>

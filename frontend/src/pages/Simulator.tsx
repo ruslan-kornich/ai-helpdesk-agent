@@ -83,9 +83,13 @@ export default function Simulator() {
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-        <div className="card flex flex-col p-5">
-          <ChatWindow messages={messages} emptyText="Type a message to start the scenario." />
+      <div className="grid gap-5 lg:h-[calc(100dvh-13rem)] lg:grid-cols-[1.3fr_1fr]">
+        <div className="card flex min-h-[460px] flex-col p-5 lg:min-h-0">
+          <ChatWindow
+            messages={messages}
+            emptyText="Type a message to start the scenario."
+            heightClass="flex-1 min-h-0"
+          />
           <div className="mt-4 flex items-center gap-2 rounded-2xl border border-line bg-surface-soft p-1.5 pl-4">
             <input
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
@@ -100,7 +104,7 @@ export default function Simulator() {
           </div>
         </div>
 
-        <div className="card p-5">
+        <div className="card flex min-h-[460px] flex-col p-5 lg:min-h-0">
           <div className="mb-4 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-muted">
             <Sparkles size={14} strokeWidth={2.3} /> Resulting ticket
           </div>
@@ -124,7 +128,7 @@ export default function Simulator() {
               </div>
             </div>
           ) : (
-            <div className="grid place-items-center gap-2 py-12 text-center text-sm text-muted">
+            <div className="grid flex-1 place-items-center gap-2 py-12 text-center text-sm text-muted">
               <ArrowUpRight size={24} strokeWidth={1.8} className="text-line" />
               Send a message to see the created ticket.
             </div>

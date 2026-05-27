@@ -26,8 +26,8 @@ export default function Layout() {
   }
 
   return (
-    <div className="grid min-h-screen grid-cols-[244px_1fr]">
-      <aside className="sticky top-0 flex h-screen flex-col border-r border-line bg-surface px-4 py-6">
+    <div className="grid min-h-screen lg:grid-cols-[244px_1fr]">
+      <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
         <div className="flex items-center gap-3 px-2">
           <span className="brand-fill grid h-10 w-10 place-items-center rounded-2xl text-white shadow-[var(--shadow-lift)]">
             <Sparkles size={20} strokeWidth={2.4} />
@@ -93,9 +93,57 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className="mesh-bg min-h-screen overflow-auto px-8 py-8 scrollbar-slim">
-        <Outlet />
-      </main>
+      <div className="flex min-w-0 flex-col">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface/85 px-4 py-3 backdrop-blur-md lg:hidden">
+          <div className="flex items-center gap-2.5">
+            <span className="brand-fill grid h-9 w-9 place-items-center rounded-xl text-white shadow-[var(--shadow-lift)]">
+              <Sparkles size={17} strokeWidth={2.4} />
+            </span>
+            <div className="leading-tight">
+              <p className="font-display text-[14px] font-extrabold">Gatum</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Support AI</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            aria-label="Sign out"
+            className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-surface text-muted transition-colors hover:text-danger"
+          >
+            <LogOut size={16} strokeWidth={2.3} />
+          </button>
+        </header>
+
+        <main className="mesh-bg min-w-0 flex-1 overflow-auto px-4 py-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] scrollbar-slim lg:px-8 lg:py-8 lg:pb-8">
+          <Outlet />
+        </main>
+      </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
+        <div className="mx-auto flex max-w-md items-stretch justify-around">
+          {LINKS.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className="group flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-bold"
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    className={[
+                      "grid h-9 w-12 place-items-center rounded-2xl transition-colors",
+                      isActive ? "bg-violet-soft text-[#8a4fd0]" : "text-muted group-active:bg-surface-soft",
+                    ].join(" ")}
+                  >
+                    <Icon size={19} strokeWidth={2.3} />
+                  </span>
+                  <span className={isActive ? "text-[#8a4fd0]" : "text-muted"}>{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }

@@ -12,6 +12,6 @@ async def simulate_message(
     payload: SimulateRequest, conversation_service: ConversationServiceDep
 ) -> SimulateResponse:
     reply, ticket = await conversation_service.handle_incoming(
-        payload.channel, payload.client_id, payload.text
+        payload.channel, payload.client_id, payload.text, deliver=False
     )
     return SimulateResponse(reply=reply, ticket=TicketRead.model_validate(ticket))

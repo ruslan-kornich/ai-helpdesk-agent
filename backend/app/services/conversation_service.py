@@ -39,6 +39,7 @@ class ConversationService:
         client_id: str,
         text: str,
         channel_metadata: dict[str, Any] | None = None,
+        deliver: bool = True,
     ) -> tuple[str, Ticket]:
         logger.debug(
             "Incoming message | channel={channel} client_id={client_id} text={text!r}",
@@ -91,7 +92,7 @@ class ConversationService:
         await self.session.commit()
         await self.session.refresh(ticket)
 
-        outbound = self.context.channels.get(channel)
+        outbound = self.context.channels.get(channel) if deliver else None
         if outbound is not None:
             logger.debug(
                 "Sending reply | channel={channel} client_id={client_id} reply={reply!r}",

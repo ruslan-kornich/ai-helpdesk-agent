@@ -1,5 +1,5 @@
 import { ChevronRight, Inbox } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { Ticket } from "../types";
 import { CHANNEL_META } from "../ui/meta";
 import Badge from "./Badge";
@@ -7,6 +7,8 @@ import Badge from "./Badge";
 const HEADERS = ["Ticket", "Created", "Channel", "Category", "Priority", "Sentiment", "Escalation", "Summary", ""];
 
 export default function TicketTable({ tickets }: { tickets: Ticket[] }) {
+  const navigate = useNavigate();
+
   if (tickets.length === 0) {
     return (
       <div className="grid place-items-center gap-3 py-16 text-center">
@@ -41,7 +43,8 @@ export default function TicketTable({ tickets }: { tickets: Ticket[] }) {
             return (
               <tr
                 key={ticket.ticket_id}
-                className="group border-b border-line/70 transition-colors hover:bg-surface-soft/60"
+                onClick={() => navigate(`/tickets/${ticket.ticket_id}`)}
+                className="group cursor-pointer border-b border-line/70 transition-colors hover:bg-surface-soft/60"
               >
                 <td className="px-3 py-3">
                   <Link
