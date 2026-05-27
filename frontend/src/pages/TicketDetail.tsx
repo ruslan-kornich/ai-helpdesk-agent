@@ -22,7 +22,7 @@ export default function TicketDetail() {
   useEffect(() => {
     if (!ticketId) return;
     fetchMessages(ticketId, page, PAGE_SIZE).then((result) => {
-      setMessages((current) => (page === 1 ? result.items : [...result.items, ...current]));
+      setMessages((current) => (page === 1 ? result.items : [...current, ...result.items]));
       setPages(result.pages || 1);
     });
   }, [ticketId, page]);
@@ -47,10 +47,12 @@ export default function TicketDetail() {
           </dl>
         </div>
         <div className="card">
-          {page < pages && (
-            <button className="secondary" onClick={() => setPage(page + 1)}>Load older</button>
-          )}
           <ChatWindow messages={messages} />
+          {page < pages && (
+            <button className="secondary" style={{ marginTop: 12 }} onClick={() => setPage(page + 1)}>
+              Load more
+            </button>
+          )}
         </div>
       </div>
     </div>
