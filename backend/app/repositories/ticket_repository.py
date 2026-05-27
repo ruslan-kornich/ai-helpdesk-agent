@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -36,3 +37,7 @@ class TicketRepository(SQLAlchemyRepository[Ticket]):
             statement,
             transformer=lambda rows: [TicketRead.model_validate(row) for row in rows],
         )
+
+    async def list_all(self) -> Sequence[Ticket]:
+        result = await self.session.execute(select(Ticket))
+        return result.scalars().all()
