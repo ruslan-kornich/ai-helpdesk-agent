@@ -19,8 +19,15 @@ class LLMProvider(ABC):
 
 class OpenAIProvider(LLMProvider):
     def __init__(self, api_key: str, model: str) -> None:
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.api_key = api_key
         self.model = model
+        self._client: AsyncOpenAI | None = None
+
+    @property
+    def client(self) -> AsyncOpenAI:
+        if self._client is None:
+            self._client = AsyncOpenAI(api_key=self.api_key)
+        return self._client
 
     async def complete_structured(
         self, system_prompt: str, user_prompt: str, schema: type[SchemaType]
