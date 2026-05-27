@@ -2,7 +2,10 @@ import asyncio
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
+from aiogram import Bot
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
 from loguru import logger
@@ -13,7 +16,7 @@ from app.agent.pipeline import AgentPipeline
 from app.agent.responder import Responder
 from app.agent.router import RouterConfig
 from app.channels.mock import MockChannel
-from app.channels.telegram import TelegramChannel, TelegramClient, run_telegram_polling
+from app.channels.telegram import TelegramChannel, build_telegram_dispatcher
 from app.channels.zendesk import ZendeskChannel
 from app.config.db import build_database_manager
 from app.config.logger import setup_logging
@@ -34,7 +37,7 @@ _DEFAULT_PERSONA = (
 )
 
 
-def _build_context() -> AppContext:
+def _build_context(telegram_bot: Bot | None) -> AppContext:
     settings = get_settings()
     llm = OpenAIProvider(api_key=settings.OPENAI_API_KEY, model=settings.OPENAI_MODEL)
     retriever = KeywordRetriever()
@@ -44,11 +47,22 @@ def _build_context() -> AppContext:
         working_hours_end=settings.WORKING_HOURS_END,
     )
     pipeline = AgentPipeline(
-        analyzer=Analyzer(llm), responder=Responder(llm, retriever), config=router_config
+        analyzer=Analyzer(llm),
+        responder=Responder(
+            llm,
+            retriever,
+            working_hours_start=settings.WORKING_HOURS_START,
+            working_hours_end=settings.WORKING_HOURS_END,
+            timezone=settings.TIMEZONE,
+        ),
+        config=router_config,
     )
     websocket_manager = WebSocketManager()
+    telegram_channel = (
+        TelegramChannel(telegram_bot) if telegram_bot is not None else MockChannel(Channel.TELEGRAM)
+    )
     channels = {
-        Channel.TELEGRAM: TelegramChannel(TelegramClient(settings.TELEGRAM_BOT_TOKEN)),
+        Channel.TELEGRAM: telegram_channel,
         Channel.ZENDESK: ZendeskChannel(
             settings.ZENDESK_SUBDOMAIN, settings.ZENDESK_EMAIL, settings.ZENDESK_API_TOKEN
         ),
@@ -92,35 +106,76 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.database_manager = build_database_manager()
     await app.state.database_manager.create_all()
-    app.state.context = _build_context()
+
+    telegram_bot = Bot(settings.TELEGRAM_BOT_TOKEN) if settings.TELEGRAM_BOT_TOKEN else None
+    app.state.context = _build_context(telegram_bot)
 
     polling_task = None
-    stop_event = asyncio.Event()
-    if settings.TELEGRAM_BOT_TOKEN:
+    dispatcher = None
+    if telegram_bot is not None:
         handler = await _telegram_handler_factory(app)
-        client = TelegramClient(settings.TELEGRAM_BOT_TOKEN)
-        polling_task = asyncio.create_task(run_telegram_polling(client, handler, stop_event))
+        dispatcher = build_telegram_dispatcher(handler)
+        polling_task = asyncio.create_task(
+            dispatcher.start_polling(
+                telegram_bot, handle_signals=False, close_bot_session=False
+            )
+        )
+        logger.info("Telegram polling started")
     else:
         logger.warning("TELEGRAM_BOT_TOKEN not set; Telegram polling disabled")
 
     yield
 
-    stop_event.set()
+    if dispatcher is not None:
+        dispatcher.stop_polling()
     if polling_task is not None:
         polling_task.cancel()
         with suppress(asyncio.CancelledError):
             await polling_task
+    if telegram_bot is not None:
+        await telegram_bot.session.close()
     await app.state.database_manager.dispose()
+
+
+def _register_frontend(app: FastAPI) -> None:
+    """Serve the built SPA with a catch-all that falls back to index.html.
+
+    A bare StaticFiles mount on "/" does not fall back to index.html for nested
+    React Router paths, so reloading a deep link returns 404. This catch-all
+    serves real files when they exist and index.html otherwise, while keeping
+    unknown API paths as JSON 404s.
+    """
+    assets_dir = _FRONTEND_DIST / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    index_file = _FRONTEND_DIST / "index.html"
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        if full_path.startswith(("api/", "api", "ws")):
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+        candidate = _FRONTEND_DIST / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(index_file)
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="ai-helpdesk-agent", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(public_router)
     app.include_router(ws.router)
     app.add_exception_handler(BusinessError, business_exception_handler)
     add_pagination(app)
     if _FRONTEND_DIST.exists():
-        app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
+        _register_frontend(app)
     return app
 
 

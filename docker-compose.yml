@@ -23,6 +23,7 @@ services:
       - .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://gatum:gatum@db:5432/gatum}
+      JWT_SECRET: ${JWT_SECRET:-dev-insecure-secret-change-me}
     ports:
       - "8000:8000"
     depends_on:

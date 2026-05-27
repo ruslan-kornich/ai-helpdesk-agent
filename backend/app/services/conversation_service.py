@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from typing import Any
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import get_settings
@@ -39,18 +40,32 @@ class ConversationService:
         text: str,
         channel_metadata: dict[str, Any] | None = None,
     ) -> tuple[str, Ticket]:
+        logger.debug(
+            "Incoming message | channel={channel} client_id={client_id} text={text!r}",
+            channel=channel.value,
+            client_id=client_id,
+            text=text,
+        )
         ticket = await self.ticket_service.get_or_create_session(
             channel, client_id, self.session_window_minutes
         )
         prior = await self.message_repository.list_for_ticket(ticket.ticket_id)
         history = build_history(prior)
+        logger.debug(
+            "Session resolved | ticket_id={ticket_id} prior_messages={count}",
+            ticket_id=ticket.ticket_id,
+            count=len(prior),
+        )
 
         await self.message_repository.add(
             Message(ticket_id=ticket.ticket_id, role=MessageRole.CLIENT, text=text, channel=channel)
         )
 
         now = local_now(self.context.timezone)
-        result = await self.context.pipeline.run(text, history, now, self.context.system_prompt)
+        ticket_reference = f"#{ticket.ticket_id[:8]}"
+        result = await self.context.pipeline.run(
+            text, history, now, self.context.system_prompt, ticket_reference
+        )
 
         await self.message_repository.add(
             Message(
@@ -65,6 +80,12 @@ class ConversationService:
         await self.ticket_service.apply_result(ticket, result, messages, channel_metadata)
 
         if result.escalation_target is not None:
+            logger.debug(
+                "Escalating ticket | ticket_id={ticket_id} target={target} priority={priority}",
+                ticket_id=ticket.ticket_id,
+                target=result.escalation_target.value,
+                priority=result.priority.value,
+            )
             await self.context.escalation_service.notify(ticket, result)
 
         await self.session.commit()
@@ -72,7 +93,15 @@ class ConversationService:
 
         outbound = self.context.channels.get(channel)
         if outbound is not None:
+            logger.debug(
+                "Sending reply | channel={channel} client_id={client_id} reply={reply!r}",
+                channel=channel.value,
+                client_id=client_id,
+                reply=result.reply,
+            )
             await outbound.send(client_id, result.reply)
+        else:
+            logger.debug("No outbound channel registered for {channel}", channel=channel.value)
 
         await self.context.websocket_manager.broadcast(
             {"type": "ticket", "ticket": TicketRead.model_validate(ticket).model_dump(mode="json")}

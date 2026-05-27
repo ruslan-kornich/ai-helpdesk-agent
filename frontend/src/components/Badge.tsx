@@ -1,14 +1,13 @@
-type Tone = "neutral" | "green" | "amber" | "red" | "accent";
-
-const TONE_BY_VALUE: Record<string, Tone> = {
-  urgent: "red", high: "amber", normal: "neutral", low: "neutral",
-  positive: "green", negative: "red",
-  how_to: "green", outage: "red", after_hours: "accent",
-};
+import { resolveMeta } from "../ui/meta";
 
 export default function Badge({ value }: { value: string | null | boolean }) {
-  if (value === null || value === undefined) return <span className="muted">—</span>;
-  const text = String(value);
-  const tone: Tone = TONE_BY_VALUE[text] ?? "neutral";
-  return <span className={`badge badge-${tone}`}>{text}</span>;
+  const meta = resolveMeta(value);
+  if (!meta) return <span className="text-muted">—</span>;
+  const Icon = meta.icon;
+  return (
+    <span className={`badge badge-${meta.tone}`}>
+      <Icon size={12} strokeWidth={2.4} />
+      {meta.label}
+    </span>
+  );
 }

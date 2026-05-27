@@ -1,4 +1,4 @@
-.PHONY: run down report seed test build
+.PHONY: run down report seed test build create-user
 
 run:
 	docker compose up --build
@@ -14,6 +14,9 @@ report:
 
 seed:
 	docker compose exec app uv run python -m app.seed
+
+create-user:
+	docker compose exec app uv run python -m app.create_user
 
 test:
 	cd backend && uv run pytest -v
