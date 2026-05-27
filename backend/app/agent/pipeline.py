@@ -28,7 +28,14 @@ class AgentPipeline:
         self.responder = responder
         self.config = config
 
-    async def run(self, text: str, history: str, now: datetime, persona: str = "") -> AgentResult:
+    async def run(
+        self,
+        text: str,
+        history: str,
+        now: datetime,
+        persona: str = "",
+        ticket_reference: str = "",
+    ) -> AgentResult:
         analysis = await self.analyzer.analyze(text, history)
         decision = decide(analysis, now, self.config)
         logger.debug(
@@ -41,7 +48,7 @@ class AgentPipeline:
             resolved=decision.resolved_by_ai,
             after_hours=decision.was_after_hours,
         )
-        reply = await self.responder.build(decision, text, persona)
+        reply = await self.responder.build(decision, text, persona, ticket_reference)
         logger.debug("Agent reply | {reply!r}", reply=reply)
         return AgentResult(
             category=decision.category,

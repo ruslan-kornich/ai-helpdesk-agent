@@ -47,7 +47,15 @@ def _build_context(telegram_bot: Bot | None) -> AppContext:
         working_hours_end=settings.WORKING_HOURS_END,
     )
     pipeline = AgentPipeline(
-        analyzer=Analyzer(llm), responder=Responder(llm, retriever), config=router_config
+        analyzer=Analyzer(llm),
+        responder=Responder(
+            llm,
+            retriever,
+            working_hours_start=settings.WORKING_HOURS_START,
+            working_hours_end=settings.WORKING_HOURS_END,
+            timezone=settings.TIMEZONE,
+        ),
+        config=router_config,
     )
     websocket_manager = WebSocketManager()
     telegram_channel = (

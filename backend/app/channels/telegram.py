@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatAction
+from aiogram.filters import CommandStart
 from aiogram.types import Message
 from loguru import logger
 
@@ -14,6 +15,14 @@ IncomingHandler = Callable[[str, str, dict], Awaitable[None]]
 # Telegram clears the typing indicator after ~5s, so it must be refreshed
 # while the agent pipeline is still working on a reply.
 _TYPING_REFRESH_SECONDS = 4.0
+
+# /start is a Telegram client command, not a support request. It is answered with a
+# static welcome and never reaches the pipeline, so it creates no ticket or escalation.
+_WELCOME_MESSAGE = (
+    "Вітаю! Я AI-асистент підтримки Gatum. Опишіть, будь ласка, ваше питання — щодо "
+    "розсилок, поповнення балансу, доставки повідомлень або технічних проблем, "
+    "і я допоможу чи передам його спеціалісту."
+)
 
 
 async def _keep_typing(bot: Bot, chat_id: str) -> None:
@@ -47,6 +56,12 @@ class TelegramChannel(BaseChannel):
 
 def build_telegram_dispatcher(handler: IncomingHandler) -> Dispatcher:
     dispatcher = Dispatcher()
+
+    @dispatcher.message(CommandStart())
+    async def on_start_command(message: Message) -> None:
+        chat_id = str(message.chat.id)
+        logger.info("Telegram /start from {chat}", chat=chat_id)
+        await message.answer(_WELCOME_MESSAGE)
 
     @dispatcher.message(F.text)
     async def on_text_message(message: Message) -> None:

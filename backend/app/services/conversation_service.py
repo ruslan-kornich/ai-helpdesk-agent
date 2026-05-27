@@ -62,7 +62,10 @@ class ConversationService:
         )
 
         now = local_now(self.context.timezone)
-        result = await self.context.pipeline.run(text, history, now, self.context.system_prompt)
+        ticket_reference = f"#{ticket.ticket_id[:8]}"
+        result = await self.context.pipeline.run(
+            text, history, now, self.context.system_prompt, ticket_reference
+        )
 
         await self.message_repository.add(
             Message(

@@ -15,7 +15,7 @@ class FakePipeline:
     def __init__(self, result: AgentResult) -> None:
         self.result = result
 
-    async def run(self, text, history, now, persona=""):
+    async def run(self, text, history, now, persona="", ticket_reference=""):
         return self.result
 
 
