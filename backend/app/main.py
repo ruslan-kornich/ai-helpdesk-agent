@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
+from aiogram import Bot
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -15,7 +16,7 @@ from app.agent.pipeline import AgentPipeline
 from app.agent.responder import Responder
 from app.agent.router import RouterConfig
 from app.channels.mock import MockChannel
-from app.channels.telegram import TelegramChannel, TelegramClient, run_telegram_polling
+from app.channels.telegram import TelegramChannel, build_telegram_dispatcher
 from app.channels.zendesk import ZendeskChannel
 from app.config.db import build_database_manager
 from app.config.logger import setup_logging
@@ -36,7 +37,7 @@ _DEFAULT_PERSONA = (
 )
 
 
-def _build_context() -> AppContext:
+def _build_context(telegram_bot: Bot | None) -> AppContext:
     settings = get_settings()
     llm = OpenAIProvider(api_key=settings.OPENAI_API_KEY, model=settings.OPENAI_MODEL)
     retriever = KeywordRetriever()
@@ -49,8 +50,11 @@ def _build_context() -> AppContext:
         analyzer=Analyzer(llm), responder=Responder(llm, retriever), config=router_config
     )
     websocket_manager = WebSocketManager()
+    telegram_channel = (
+        TelegramChannel(telegram_bot) if telegram_bot is not None else MockChannel(Channel.TELEGRAM)
+    )
     channels = {
-        Channel.TELEGRAM: TelegramChannel(TelegramClient(settings.TELEGRAM_BOT_TOKEN)),
+        Channel.TELEGRAM: telegram_channel,
         Channel.ZENDESK: ZendeskChannel(
             settings.ZENDESK_SUBDOMAIN, settings.ZENDESK_EMAIL, settings.ZENDESK_API_TOKEN
         ),
@@ -94,24 +98,34 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.database_manager = build_database_manager()
     await app.state.database_manager.create_all()
-    app.state.context = _build_context()
+
+    telegram_bot = Bot(settings.TELEGRAM_BOT_TOKEN) if settings.TELEGRAM_BOT_TOKEN else None
+    app.state.context = _build_context(telegram_bot)
 
     polling_task = None
-    stop_event = asyncio.Event()
-    if settings.TELEGRAM_BOT_TOKEN:
+    dispatcher = None
+    if telegram_bot is not None:
         handler = await _telegram_handler_factory(app)
-        client = TelegramClient(settings.TELEGRAM_BOT_TOKEN)
-        polling_task = asyncio.create_task(run_telegram_polling(client, handler, stop_event))
+        dispatcher = build_telegram_dispatcher(handler)
+        polling_task = asyncio.create_task(
+            dispatcher.start_polling(
+                telegram_bot, handle_signals=False, close_bot_session=False
+            )
+        )
+        logger.info("Telegram polling started")
     else:
         logger.warning("TELEGRAM_BOT_TOKEN not set; Telegram polling disabled")
 
     yield
 
-    stop_event.set()
+    if dispatcher is not None:
+        dispatcher.stop_polling()
     if polling_task is not None:
         polling_task.cancel()
         with suppress(asyncio.CancelledError):
             await polling_task
+    if telegram_bot is not None:
+        await telegram_bot.session.close()
     await app.state.database_manager.dispose()
 
 

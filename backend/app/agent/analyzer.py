@@ -47,17 +47,27 @@ class Analyzer:
         self.llm = llm
 
     async def analyze(self, text: str, history: str) -> AnalysisResult:
+        logger.debug("Analyzer input | text={text!r} history_len={history_len}", text=text, history_len=len(history))
         user_prompt = ANALYZER_USER_TEMPLATE.format(history=history or "(none)", text=text)
         try:
             llm_result = await self.llm.complete_structured(
                 ANALYZER_SYSTEM_PROMPT, user_prompt, LLMAnalysis
             )
-            return AnalysisResult(
+            result = AnalysisResult(
                 category=Category(llm_result.category.value),
                 confidence=llm_result.confidence,
                 sentiment=llm_result.sentiment,
                 entities=llm_result.entities,
             )
+            logger.debug(
+                "Analyzer result | category={category} confidence={confidence:.2f} "
+                "sentiment={sentiment} entities={entities}",
+                category=result.category.value,
+                confidence=result.confidence,
+                sentiment=result.sentiment.value,
+                entities=result.entities.model_dump(exclude_none=True),
+            )
+            return result
         except Exception as error:
             logger.exception("Analyzer LLM call failed: {error}", error=error)
             return AnalysisResult(

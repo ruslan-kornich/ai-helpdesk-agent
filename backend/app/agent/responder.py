@@ -54,7 +54,22 @@ class Responder:
 
     async def _answer_how_to(self, text: str, persona: str = "") -> str:
         chunks = self.retriever.search(text, top_k=3)
+        logger.debug(
+            "Responder how_to | query={query!r} faq_chunks_found={count}",
+            query=text,
+            count=len(chunks),
+        )
         if not chunks:
+            # Keyword search misses on non-English queries (FAQ is English-only).
+            # Hand the full FAQ to the multilingual LLM, which answers in the client's
+            # language or declines per the system prompt if the topic is not covered.
+            chunks = self.retriever.all_documents()
+            logger.debug(
+                "Responder how_to | keyword miss, falling back to full FAQ ({count} docs)",
+                count=len(chunks),
+            )
+        if not chunks:
+            logger.debug("Responder how_to | knowledge base empty, using fallback reply")
             return _FALLBACK_HOWTO_REPLY
         context = "\n\n---\n\n".join(chunks)
         system_prompt = (

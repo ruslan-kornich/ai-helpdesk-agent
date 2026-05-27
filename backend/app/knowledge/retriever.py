@@ -31,6 +31,9 @@ class Retriever(ABC):
     @abstractmethod
     def search(self, query: str, top_k: int = 3) -> list[str]: ...
 
+    @abstractmethod
+    def all_documents(self) -> list[str]: ...
+
 
 class KeywordRetriever(Retriever):
     def __init__(self, faq_dir: Path = _FAQ_DIR) -> None:
@@ -50,3 +53,6 @@ class KeywordRetriever(Retriever):
                 scored.append((overlap, content))
         scored.sort(key=lambda item: item[0], reverse=True)
         return [content for _, content in scored[:top_k]]
+
+    def all_documents(self) -> list[str]:
+        return [content for content, _ in self.documents]

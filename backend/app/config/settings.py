@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str = ""
 
+    LOG_LEVEL: str = "INFO"
+
     ZENDESK_SUBDOMAIN: str = ""
     ZENDESK_EMAIL: str = ""
     ZENDESK_API_TOKEN: str = ""
