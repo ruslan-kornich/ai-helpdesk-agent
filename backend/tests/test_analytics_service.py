@@ -33,10 +33,40 @@ def _ticket(
 
 def _sample() -> list[Ticket]:
     return [
-        _ticket(Channel.TELEGRAM, Category.HOW_TO, Sentiment.POSITIVE, True, False, datetime(2026, 5, 20, 10, 0)),
-        _ticket(Channel.TELEGRAM, Category.BILLING, Sentiment.NEUTRAL, False, False, datetime(2026, 5, 20, 11, 0), EscalationTarget.FINANCE),
-        _ticket(Channel.WHATSAPP, Category.AFTER_HOURS, Sentiment.NEUTRAL, False, True, datetime(2026, 5, 21, 2, 0)),
-        _ticket(Channel.ZENDESK, Category.OUTAGE, Sentiment.NEGATIVE, False, False, datetime(2026, 5, 21, 9, 0), EscalationTarget.L2_SUPPORT),
+        _ticket(
+            Channel.TELEGRAM,
+            Category.HOW_TO,
+            Sentiment.POSITIVE,
+            True,
+            False,
+            datetime(2026, 5, 20, 10, 0),
+        ),
+        _ticket(
+            Channel.TELEGRAM,
+            Category.BILLING,
+            Sentiment.NEUTRAL,
+            False,
+            False,
+            datetime(2026, 5, 20, 11, 0),
+            EscalationTarget.FINANCE,
+        ),
+        _ticket(
+            Channel.WHATSAPP,
+            Category.AFTER_HOURS,
+            Sentiment.NEUTRAL,
+            False,
+            True,
+            datetime(2026, 5, 21, 2, 0),
+        ),
+        _ticket(
+            Channel.ZENDESK,
+            Category.OUTAGE,
+            Sentiment.NEGATIVE,
+            False,
+            False,
+            datetime(2026, 5, 21, 9, 0),
+            EscalationTarget.L2_SUPPORT,
+        ),
     ]
 
 

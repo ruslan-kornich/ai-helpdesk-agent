@@ -21,7 +21,10 @@ def _format_report(report: AnalyticsReport) -> str:
         "By category:",
         *[f"  {category}: {count}" for category, count in sorted(report.by_category.items())],
         "Sentiment:",
-        *[f"  {sentiment}: {count}" for sentiment, count in sorted(report.sentiment_distribution.items())],
+        *[
+            f"  {sentiment}: {count}"
+            for sentiment, count in sorted(report.sentiment_distribution.items())
+        ],
         "By day:",
         *[f"  {bucket.date}: {bucket.count}" for bucket in report.by_day],
     ]

@@ -81,10 +81,20 @@ async def _seed() -> None:
             )
             await ticket_repository.add(ticket)
             await message_repository.add(
-                Message(ticket_id=ticket.ticket_id, role=MessageRole.CLIENT, text=entry["client_text"], channel=entry["channel"])
+                Message(
+                    ticket_id=ticket.ticket_id,
+                    role=MessageRole.CLIENT,
+                    text=entry["client_text"],
+                    channel=entry["channel"],
+                )
             )
             await message_repository.add(
-                Message(ticket_id=ticket.ticket_id, role=MessageRole.AGENT, text=entry["agent_text"], channel=entry["channel"])
+                Message(
+                    ticket_id=ticket.ticket_id,
+                    role=MessageRole.AGENT,
+                    text=entry["agent_text"],
+                    channel=entry["channel"],
+                )
             )
         await session.commit()
     await manager.dispose()
