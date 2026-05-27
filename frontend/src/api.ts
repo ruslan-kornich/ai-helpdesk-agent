@@ -66,7 +66,7 @@ export function connectWebSocket(onMessage: (data: unknown) => void): WebSocket 
     try {
       onMessage(JSON.parse(event.data));
     } catch {
-      // ignore malformed frames
+      console.warn("Ignoring malformed WebSocket frame:", event.data);
     }
   };
   return socket;

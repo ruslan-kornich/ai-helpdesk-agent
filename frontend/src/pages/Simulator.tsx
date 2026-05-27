@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { simulate } from "../api";
 import Badge from "../components/Badge";
+import ChatWindow from "../components/ChatWindow";
 import type { Channel, Message, Ticket } from "../types";
 
 const CHANNELS: Channel[] = ["whatsapp", "teams", "telegram", "zendesk"];
@@ -13,11 +14,12 @@ export default function Simulator() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [busy, setBusy] = useState(false);
+  const nextMessageId = useRef(0);
 
   async function send() {
     if (!text.trim()) return;
     const clientMessage: Message = {
-      id: Date.now(), ticket_id: "", role: "client", text, channel,
+      id: nextMessageId.current++, ticket_id: "", role: "client", text, channel,
       created_at: new Date().toISOString(),
     };
     setMessages((current) => [...current, clientMessage]);
@@ -26,7 +28,7 @@ export default function Simulator() {
     try {
       const response = await simulate(channel, clientId, clientMessage.text);
       setMessages((current) => [...current, {
-        id: Date.now() + 1, ticket_id: response.ticket.ticket_id, role: "agent",
+        id: nextMessageId.current++, ticket_id: response.ticket.ticket_id, role: "agent",
         text: response.reply, channel, created_at: new Date().toISOString(),
       }]);
       setTicket(response.ticket);
@@ -46,7 +48,7 @@ export default function Simulator() {
       </div>
       <div className="grid cols-2">
         <div className="card">
-          <ChatPanel messages={messages} />
+          <ChatWindow messages={messages} emptyText="Start a conversation." />
           <div className="row" style={{ marginTop: 12 }}>
             <input
               style={{ flex: 1 }}
@@ -72,17 +74,6 @@ export default function Simulator() {
           ) : <div className="muted">Send a message to see the ticket.</div>}
         </div>
       </div>
-    </div>
-  );
-}
-
-function ChatPanel({ messages }: { messages: Message[] }) {
-  return (
-    <div className="chat">
-      {messages.map((message) => (
-        <div key={message.id} className={`bubble ${message.role}`}>{message.text}</div>
-      ))}
-      {messages.length === 0 && <div className="muted">Start a conversation.</div>}
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { connectWebSocket, fetchTickets } from "../api";
 import TicketTable from "../components/TicketTable";
-import type { Ticket, TicketFilters } from "../types";
+import type { Category, Channel, Ticket, TicketFilters } from "../types";
 
 const PAGE_SIZE = 15;
-const CHANNELS = ["telegram", "zendesk", "whatsapp", "teams"];
-const CATEGORIES = ["how_to", "billing", "delivery_issue", "after_hours", "commercial", "outage", "unknown", "other"];
+const CHANNELS: Channel[] = ["telegram", "zendesk", "whatsapp", "teams"];
+const CATEGORIES: Category[] = ["how_to", "billing", "delivery_issue", "after_hours", "commercial", "outage", "unknown", "other"];
 
 export default function Tickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);

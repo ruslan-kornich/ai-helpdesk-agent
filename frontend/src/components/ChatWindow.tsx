@@ -1,6 +1,12 @@
 import type { Message } from "../types";
 
-export default function ChatWindow({ messages }: { messages: Message[] }) {
+export default function ChatWindow({
+  messages,
+  emptyText = "No messages.",
+}: {
+  messages: Message[];
+  emptyText?: string;
+}) {
   return (
     <div className="chat">
       {messages.map((message) => (
@@ -8,7 +14,7 @@ export default function ChatWindow({ messages }: { messages: Message[] }) {
           {message.text}
         </div>
       ))}
-      {messages.length === 0 && <div className="muted">No messages.</div>}
+      {messages.length === 0 && <div className="muted">{emptyText}</div>}
     </div>
   );
 }

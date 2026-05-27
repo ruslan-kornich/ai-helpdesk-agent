@@ -10,6 +10,12 @@ export default function Settings() {
     fetchSettings().then(setSettings);
   }, []);
 
+  useEffect(() => {
+    if (!status) return;
+    const timer = setTimeout(() => setStatus(""), 2000);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   if (!settings) return <div className="muted">Loading…</div>;
 
   function update(patch: Partial<BotSettings>) {
@@ -21,7 +27,6 @@ export default function Settings() {
     const saved = await saveSettings(settings);
     setSettings(saved);
     setStatus("Saved");
-    setTimeout(() => setStatus(""), 2000);
   }
 
   return (
