@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     SESSION_WINDOW_MINUTES: int = 30
     CONFIDENCE_THRESHOLD: float = 0.55
 
+    JWT_SECRET: str = "CHANGE_ME"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
 from loguru import logger
@@ -113,14 +115,45 @@ async def lifespan(app: FastAPI):
     await app.state.database_manager.dispose()
 
 
+def _register_frontend(app: FastAPI) -> None:
+    """Serve the built SPA with a catch-all that falls back to index.html.
+
+    A bare StaticFiles mount on "/" does not fall back to index.html for nested
+    React Router paths, so reloading a deep link returns 404. This catch-all
+    serves real files when they exist and index.html otherwise, while keeping
+    unknown API paths as JSON 404s.
+    """
+    assets_dir = _FRONTEND_DIST / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    index_file = _FRONTEND_DIST / "index.html"
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        if full_path.startswith(("api/", "api", "ws")):
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+        candidate = _FRONTEND_DIST / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(index_file)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="ai-helpdesk-agent", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(public_router)
     app.include_router(ws.router)
     app.add_exception_handler(BusinessError, business_exception_handler)
     add_pagination(app)
     if _FRONTEND_DIST.exists():
-        app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
+        _register_frontend(app)
     return app
 
 
