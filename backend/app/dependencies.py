@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.context import AppContext
 from app.repositories.message_repository import MessageRepository
 from app.repositories.ticket_repository import TicketRepository
+from app.services.analytics_service import AnalyticsService
 from app.services.conversation_service import ConversationService
 from app.services.ticket_service import TicketService
 
@@ -52,3 +53,10 @@ def get_conversation_service(
 
 
 ConversationServiceDep = Annotated[ConversationService, Depends(get_conversation_service)]
+
+
+def get_analytics_service(ticket_repository: TicketRepositoryDep) -> AnalyticsService:
+    return AnalyticsService(ticket_repository)
+
+
+AnalyticsServiceDep = Annotated[AnalyticsService, Depends(get_analytics_service)]
