@@ -19,6 +19,7 @@ class AgentResult:
     resolved_by_ai: bool
     was_after_hours: bool
     entities: dict[str, Any]
+    summary: str
     reply: str
 
 
@@ -58,5 +59,6 @@ class AgentPipeline:
             resolved_by_ai=decision.resolved_by_ai,
             was_after_hours=decision.was_after_hours,
             entities=analysis.entities.model_dump(exclude_none=True),
+            summary=analysis.summary,
             reply=reply,
         )

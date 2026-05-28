@@ -73,7 +73,9 @@ class TicketService:
         ticket.escalation_target = result.escalation_target
         ticket.resolved_by_ai = result.resolved_by_ai
         ticket.conversation_snippet = build_snippet(messages)
-        if not ticket.summary:
+        if result.summary:
+            ticket.summary = result.summary[:200]
+        elif not ticket.summary:
             first_client = next(
                 (message.text for message in messages if message.role == MessageRole.CLIENT), ""
             )

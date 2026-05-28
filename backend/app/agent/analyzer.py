@@ -32,6 +32,7 @@ class LLMAnalysis(BaseModel):
     category: LLMCategory
     confidence: float = Field(ge=0.0, le=1.0)
     sentiment: Sentiment
+    summary: str
     entities: ExtractedEntities = Field(default_factory=ExtractedEntities)
 
 
@@ -39,6 +40,7 @@ class AnalysisResult(BaseModel):
     category: Category
     confidence: float = Field(ge=0.0, le=1.0)
     sentiment: Sentiment
+    summary: str
     entities: ExtractedEntities = Field(default_factory=ExtractedEntities)
 
 
@@ -57,6 +59,7 @@ class Analyzer:
                 category=Category(llm_result.category.value),
                 confidence=llm_result.confidence,
                 sentiment=llm_result.sentiment,
+                summary=llm_result.summary.strip()[:200],
                 entities=llm_result.entities,
             )
             logger.debug(
@@ -71,5 +74,8 @@ class Analyzer:
         except Exception as error:
             logger.exception("Analyzer LLM call failed: {error}", error=error)
             return AnalysisResult(
-                category=Category.UNKNOWN, confidence=0.0, sentiment=Sentiment.NEUTRAL
+                category=Category.UNKNOWN,
+                confidence=0.0,
+                sentiment=Sentiment.NEUTRAL,
+                summary=text[:200],
             )

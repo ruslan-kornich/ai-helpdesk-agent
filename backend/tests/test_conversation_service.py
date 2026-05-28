@@ -36,6 +36,7 @@ def _result() -> AgentResult:
         resolved_by_ai=False,
         was_after_hours=False,
         entities={},
+        summary="Client asks how to top up the balance.",
         reply="Here are the top-up instructions.",
     )
 

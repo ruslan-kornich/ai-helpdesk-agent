@@ -13,7 +13,9 @@ CONFIG = RouterConfig(confidence_threshold=0.55, working_hours_start=9, working_
 def _analysis(
     category: Category, confidence: float = 0.9, sentiment: Sentiment = Sentiment.NEUTRAL
 ) -> AnalysisResult:
-    return AnalysisResult(category=category, confidence=confidence, sentiment=sentiment)
+    return AnalysisResult(
+        category=category, confidence=confidence, sentiment=sentiment, summary="test summary"
+    )
 
 
 def test_is_after_hours_weekday():
