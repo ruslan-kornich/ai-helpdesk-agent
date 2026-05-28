@@ -3,7 +3,10 @@ import pytest
 from app.channels.zendesk import (
     ZendeskInbound,
     ZendeskTicketFields,
+    build_end_user_payload,
     build_reply_payload,
+    build_request_ticket_payload,
+    build_requester_comment_payload,
     parse_inbounds,
 )
 from app.channels.zendesk_poller import ZendeskPoller, is_new_comment, map_ticket_fields
@@ -39,6 +42,33 @@ def test_build_reply_payload_shape():
     assert payload["ticket"]["priority"] == "high"
     assert payload["ticket"]["status"] == "open"
     assert payload["ticket"]["tags"] == ["ai-helpdesk-agent", "cat_billing"]
+
+
+def test_build_end_user_payload_shape():
+    payload = build_end_user_payload("Jane Visitor", "jane@example.com")
+    assert payload["user"]["name"] == "Jane Visitor"
+    assert payload["user"]["email"] == "jane@example.com"
+    assert payload["user"]["role"] == "end-user"
+    assert payload["user"]["verified"] is True
+
+
+def test_build_request_ticket_payload_shape():
+    payload = build_request_ticket_payload("555", "Need help", "first message")
+    ticket = payload["ticket"]
+    assert ticket["subject"] == "Need help"
+    assert ticket["requester_id"] == "555"
+    assert ticket["comment"]["body"] == "first message"
+    assert ticket["comment"]["author_id"] == "555"
+    assert ticket["comment"]["public"] is True
+    assert "ai-helpdesk-agent" in ticket["tags"]
+
+
+def test_build_requester_comment_payload_shape():
+    payload = build_requester_comment_payload("555", "second message")
+    comment = payload["ticket"]["comment"]
+    assert comment["body"] == "second message"
+    assert comment["author_id"] == "555"
+    assert comment["public"] is True
 
 
 def _ticket(**overrides) -> Ticket:

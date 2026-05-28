@@ -56,6 +56,38 @@ def build_reply_payload(text: str, fields: ZendeskTicketFields) -> dict[str, Any
     }
 
 
+def build_end_user_payload(name: str, email: str) -> dict[str, Any]:
+    return {
+        "user": {
+            "name": name,
+            "email": email,
+            "role": "end-user",
+            "verified": True,
+        }
+    }
+
+
+def build_request_ticket_payload(
+    requester_id: str, subject: str, text: str
+) -> dict[str, Any]:
+    return {
+        "ticket": {
+            "subject": subject,
+            "requester_id": requester_id,
+            "comment": {"body": text, "author_id": requester_id, "public": True},
+            "tags": ["ai-helpdesk-agent"],
+        }
+    }
+
+
+def build_requester_comment_payload(requester_id: str, text: str) -> dict[str, Any]:
+    return {
+        "ticket": {
+            "comment": {"body": text, "author_id": requester_id, "public": True},
+        }
+    }
+
+
 class ZendeskChannel(BaseChannel):
     channel = Channel.ZENDESK
 
@@ -125,6 +157,40 @@ class ZendeskChannel(BaseChannel):
                 )
         except Exception as error:
             logger.exception("Zendesk post_reply failed: {error}", error=error)
+
+    async def find_or_create_end_user(self, name: str, email: str) -> str:
+        payload = build_end_user_payload(name, email)
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                f"{self.base_url}/users/create_or_update.json",
+                json=payload,
+                auth=self.auth,
+            )
+            response.raise_for_status()
+            return str(response.json()["user"]["id"])
+
+    async def create_request_ticket(
+        self, requester_id: str, subject: str, text: str
+    ) -> str:
+        payload = build_request_ticket_payload(requester_id, subject, text)
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                f"{self.base_url}/tickets.json", json=payload, auth=self.auth
+            )
+            response.raise_for_status()
+            return str(response.json()["ticket"]["id"])
+
+    async def append_comment_as_requester(
+        self, zendesk_ticket_id: str, requester_id: str, text: str
+    ) -> None:
+        payload = build_requester_comment_payload(requester_id, text)
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.put(
+                f"{self.base_url}/tickets/{zendesk_ticket_id}.json",
+                json=payload,
+                auth=self.auth,
+            )
+            response.raise_for_status()
 
     async def send(self, client_id: str, text: str) -> None:
         if not self.enabled:
