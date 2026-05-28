@@ -17,6 +17,22 @@ class TicketService:
     def __init__(self, ticket_repository: TicketRepository) -> None:
         self.ticket_repository = ticket_repository
 
+    def _new_ticket(
+        self, channel: Channel, client_id: str, metadata: dict[str, Any]
+    ) -> Ticket:
+        return Ticket(
+            channel=channel,
+            client_id=client_id,
+            category=Category.UNKNOWN,
+            priority=Priority.NORMAL,
+            summary="",
+            conversation_snippet="",
+            escalation_target=None,
+            resolved_by_ai=False,
+            sentiment=Sentiment.NEUTRAL,
+            ticket_metadata=metadata,
+        )
+
     async def get_or_create_session(
         self,
         channel: Channel,
@@ -33,36 +49,16 @@ class TicketService:
             existing = await self.ticket_repository.get_by_zendesk_ticket_id(zendesk_ticket_id)
             if existing is not None:
                 return existing
-            ticket = Ticket(
-                channel=channel,
-                client_id=client_id,
-                category=Category.UNKNOWN,
-                priority=Priority.NORMAL,
-                summary="",
-                conversation_snippet="",
-                escalation_target=None,
-                resolved_by_ai=False,
-                sentiment=Sentiment.NEUTRAL,
-                ticket_metadata={"zendesk_ticket_id": zendesk_ticket_id},
+            return await self.ticket_repository.add(
+                self._new_ticket(channel, client_id, {"zendesk_ticket_id": zendesk_ticket_id})
             )
-            return await self.ticket_repository.add(ticket)
 
         active = await self.ticket_repository.get_active(client_id, channel, window_minutes)
         if active is not None:
             return active
-        ticket = Ticket(
-            channel=channel,
-            client_id=client_id,
-            category=Category.UNKNOWN,
-            priority=Priority.NORMAL,
-            summary="",
-            conversation_snippet="",
-            escalation_target=None,
-            resolved_by_ai=False,
-            sentiment=Sentiment.NEUTRAL,
-            ticket_metadata={},
+        return await self.ticket_repository.add(
+            self._new_ticket(channel, client_id, {})
         )
-        return await self.ticket_repository.add(ticket)
 
     async def apply_result(
         self,
