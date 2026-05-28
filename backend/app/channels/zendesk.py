@@ -1,3 +1,4 @@
+from typing import Any
 from dataclasses import dataclass
 
 import httpx
@@ -24,7 +25,7 @@ class ZendeskTicketFields:
 
 
 def parse_inbounds(
-    tickets: list[dict], comments_by_ticket: dict[str, list[dict]]
+    tickets: list[dict[str, Any]], comments_by_ticket: dict[str, list[dict[str, Any]]]
 ) -> list[ZendeskInbound]:
     inbounds: list[ZendeskInbound] = []
     for ticket in tickets:
@@ -43,7 +44,7 @@ def parse_inbounds(
     return inbounds
 
 
-def build_reply_payload(text: str, fields: ZendeskTicketFields) -> dict:
+def build_reply_payload(text: str, fields: ZendeskTicketFields) -> dict[str, Any]:
     return {
         "ticket": {
             "comment": {"body": text, "public": True},
