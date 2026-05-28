@@ -1,8 +1,57 @@
+from dataclasses import dataclass
+
 import httpx
 from loguru import logger
 
 from app.channels.base import BaseChannel
 from app.models.enums import Channel
+
+
+@dataclass
+class ZendeskInbound:
+    zendesk_ticket_id: str
+    requester_id: str
+    comment_id: str
+    author_id: str
+    text: str
+
+
+@dataclass
+class ZendeskTicketFields:
+    priority: str
+    tags: list[str]
+    status: str
+
+
+def parse_inbounds(
+    tickets: list[dict], comments_by_ticket: dict[str, list[dict]]
+) -> list[ZendeskInbound]:
+    inbounds: list[ZendeskInbound] = []
+    for ticket in tickets:
+        zendesk_ticket_id = str(ticket["id"])
+        requester_id = str(ticket["requester_id"])
+        for comment in comments_by_ticket.get(zendesk_ticket_id, []):
+            inbounds.append(
+                ZendeskInbound(
+                    zendesk_ticket_id=zendesk_ticket_id,
+                    requester_id=requester_id,
+                    comment_id=str(comment["id"]),
+                    author_id=str(comment["author_id"]),
+                    text=comment["body"],
+                )
+            )
+    return inbounds
+
+
+def build_reply_payload(text: str, fields: ZendeskTicketFields) -> dict:
+    return {
+        "ticket": {
+            "comment": {"body": text, "public": True},
+            "priority": fields.priority,
+            "status": fields.status,
+            "tags": fields.tags,
+        }
+    }
 
 
 class ZendeskChannel(BaseChannel):
