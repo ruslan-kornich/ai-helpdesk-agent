@@ -1,5 +1,6 @@
-import { Clock, MessageSquare, Sparkles, Zap } from "lucide-react";
+import { BookOpen, Clock, MessageSquare, Sparkles, Zap } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import SupportWidget from "../components/SupportWidget";
 
 const FEATURES = [
@@ -32,6 +33,9 @@ export default function Support() {
           </span>
           <span className="brand-text">gatum</span>
         </div>
+        <Link to="/documentation" className="btn btn-ghost">
+          <BookOpen size={16} strokeWidth={2.3} /> Документація
+        </Link>
       </header>
 
       <main className="mx-auto max-w-6xl px-6">

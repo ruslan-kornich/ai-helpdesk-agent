@@ -2,7 +2,9 @@ import { Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth";
 import Layout from "./components/Layout";
 import Analytics from "./pages/Analytics";
+import Docs from "./pages/Docs";
 import Login from "./pages/Login";
+import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import Simulator from "./pages/Simulator";
 import Support from "./pages/Support";
@@ -14,6 +16,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/support" element={<Support />} />
+      <Route path="/documentation" element={<Docs />} />
       <Route
         element={
           <ProtectedRoute>
@@ -27,6 +30,7 @@ export default function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />
       </Route>
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
