@@ -17,7 +17,8 @@ from app.agent.responder import Responder
 from app.agent.router import RouterConfig
 from app.channels.mock import MockChannel
 from app.channels.telegram import TelegramChannel, build_telegram_dispatcher
-from app.channels.zendesk import ZendeskChannel
+from app.channels.zendesk import ZendeskChannel, ZendeskInbound
+from app.channels.zendesk_poller import ZendeskPoller
 from app.config.db import build_database_manager
 from app.config.logger import setup_logging
 from app.config.settings import get_settings
@@ -107,7 +108,7 @@ async def _zendesk_handler_factory(app: FastAPI, zendesk_channel: ZendeskChannel
     from app.services.conversation_service import ConversationService
     from app.services.ticket_service import TicketService
 
-    async def handler(inbound) -> None:
+    async def handler(inbound: ZendeskInbound) -> None:
         manager = app.state.database_manager
         async with manager.session_factory() as session:
             ticket_repository = TicketRepository(session)
@@ -162,8 +163,6 @@ async def lifespan(app: FastAPI):
         logger.info("Telegram polling started")
     else:
         logger.warning("TELEGRAM_BOT_TOKEN not set; Telegram polling disabled")
-
-    from app.channels.zendesk_poller import ZendeskPoller
 
     zendesk_channel = app.state.context.channels[Channel.ZENDESK]
     zendesk_task = None
