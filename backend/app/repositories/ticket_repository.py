@@ -34,7 +34,9 @@ class TicketRepository(SQLAlchemyRepository[Ticket]):
         statement = (
             select(Ticket)
             .where(Ticket.channel == Channel.ZENDESK)
-            .where(Ticket.ticket_metadata["zendesk_ticket_id"].as_string() == str(zendesk_ticket_id))
+            .where(
+                Ticket.ticket_metadata["zendesk_ticket_id"].as_string() == str(zendesk_ticket_id)
+            )
             .order_by(Ticket.created_at.desc())
             .limit(1)
         )
