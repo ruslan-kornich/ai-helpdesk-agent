@@ -5,6 +5,7 @@ import Analytics from "./pages/Analytics";
 import Login from "./pages/Login";
 import Settings from "./pages/Settings";
 import Simulator from "./pages/Simulator";
+import Support from "./pages/Support";
 import TicketDetail from "./pages/TicketDetail";
 import Tickets from "./pages/Tickets";
 
@@ -12,6 +13,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/support" element={<Support />} />
       <Route
         element={
           <ProtectedRoute>

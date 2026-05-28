@@ -1,6 +1,6 @@
 import type {
   AnalyticsReport, BotSettings, Message, Page, SimulateResponse,
-  Ticket, TicketFilters,
+  SupportMessage, Ticket, TicketFilters,
 } from "./types";
 
 const ACCESS_KEY = "access_token";
@@ -123,6 +123,26 @@ export function simulate(
   return request<SimulateResponse>(
     "/api/simulate",
     jsonBody("POST", { channel, client_id: clientId, text }),
+  );
+}
+
+export function startSupportChat(
+  name: string, email: string, text: string, zendeskTicketId?: string,
+): Promise<{ zendesk_ticket_id: string }> {
+  return request<{ zendesk_ticket_id: string }>("/api/support/chat", {
+    ...jsonBody("POST", { name, email, text, zendesk_ticket_id: zendeskTicketId ?? null }),
+    auth: false,
+  });
+}
+
+export function fetchSupportReplies(
+  zendeskTicketId: string, afterId: number,
+): Promise<{ messages: SupportMessage[] }> {
+  const params = new URLSearchParams({
+    zendesk_ticket_id: zendeskTicketId, after_id: String(afterId),
+  });
+  return request<{ messages: SupportMessage[] }>(
+    `/api/support/messages?${params.toString()}`, { auth: false },
   );
 }
 

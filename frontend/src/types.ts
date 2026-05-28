@@ -74,3 +74,10 @@ export interface SimulateResponse {
   reply: string;
   ticket: Ticket;
 }
+
+export interface SupportMessage {
+  id: number;
+  role: MessageRole;
+  text: string;
+  created_at: string;
+}

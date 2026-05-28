@@ -33,7 +33,18 @@ Message [@BotFather](https://t.me/BotFather), `/newbot`, copy the token into
 Create a free Zendesk trial. In Admin Center → Apps and integrations → APIs → Zendesk API,
 enable token access and create an API token. Set `ZENDESK_SUBDOMAIN` (the `xxx` in
 `xxx.zendesk.com`), `ZENDESK_EMAIL`, and `ZENDESK_API_TOKEN`. If unset, Zendesk is treated as
-unavailable (logged warning, no crash).
+unavailable (logged warning, no crash). `ZENDESK_POLL_INTERVAL_SECONDS` controls how often the
+poller checks for new comments (default: 15 seconds).
+
+At runtime, an in-process poller (started in the FastAPI lifespan alongside the Telegram poller)
+polls Zendesk for new requester comments, runs each through the agent pipeline, and posts the reply
+plus updated priority/tags/status back onto the same ticket. No public tunnel is needed — the same
+approach as Telegram long-polling.
+
+To open a ticket for the demo, the message must be authored by the ticket requester (the bot skips
+agent and bot comments). Supported inputs: the Help Center **"submit a request"** form, email-to-
+ticket, or an API-created ticket on the requester's behalf. The messaging Web Widget is not
+compatible — it creates conversations, not classic ticket comments.
 
 ### Local dev (no Docker)
 ```bash
@@ -48,7 +59,7 @@ flowchart TD
   subgraph Channels
     TG[Telegram bot] --> CS
     SIM[Simulator / mock WhatsApp+Teams] --> CS
-    ZD[(Zendesk create-only)]
+    ZD[Zendesk inbound poller] --> CS
   end
   CS[conversation_service] --> TR[(ticket_repository)]
   CS --> MR[(message_repository)]
@@ -106,6 +117,23 @@ and `utils/` (generic repository, exceptions, WebSocket manager, timestamp mixin
 - **Telegram in-process (not a separate worker)** — the polling loop runs in the FastAPI lifespan,
   sharing the pipeline and WebSocket broadcaster in-memory; no broker needed. Extracting it into its
   own container is the documented scaling path, not needed now.
+- **Zendesk inbound polling (not webhook/trigger push)** — no public tunnel needed locally,
+  consistent with the Telegram long-polling decision; the poller runs in-process in the FastAPI
+  lifespan exactly like the Telegram poller.
+- **Zendesk Approach A (in-memory `updated_at` watermark + persisted per-ticket
+  `last_seen_comment_id` cursor)** over Approach B (Incremental Export cursor API) — simpler to
+  implement for a prototype; the persisted cursor de-duplicates already-answered comments across
+  restarts. Approach B (Incremental Export) is the documented scaling path.
+- **One Zendesk ticket maps to one internal ticket** via `zendesk_ticket_id` in metadata —
+  bypasses the 30-minute session window used by other channels because a Zendesk ticket is a
+  long-lived thread, not a 30-minute session.
+- **Loop prevention via `author_id == requester_id`** — the bot processes only comments authored
+  by the ticket requester, skipping its own replies and human agents' comments without requiring a
+  `users/me.json` lookup.
+- **Accepted prototype limitation** — a comment arriving strictly during a restart (its
+  `updated_at` falls before the new in-memory watermark) may be missed until the ticket is next
+  updated; day-granularity search re-fetches are harmless because the persisted comment cursor
+  de-duplicates already-answered comments.
 - **`general_support` escalation target** — extends the assignment's enum so C-7 routes to a non-null
   target, keeping the `resolved_by_ai` invariant clean (C-7 reads as escalated, not AI-resolved).
 - **C-6 priority = `urgent`** (not the literal "high") — the scenario demands "escalate immediately"

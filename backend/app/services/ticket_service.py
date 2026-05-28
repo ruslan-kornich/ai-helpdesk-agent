@@ -17,13 +17,10 @@ class TicketService:
     def __init__(self, ticket_repository: TicketRepository) -> None:
         self.ticket_repository = ticket_repository
 
-    async def get_or_create_session(
-        self, channel: Channel, client_id: str, window_minutes: int
+    def _new_ticket(
+        self, channel: Channel, client_id: str, metadata: dict[str, Any]
     ) -> Ticket:
-        active = await self.ticket_repository.get_active(client_id, channel, window_minutes)
-        if active is not None:
-            return active
-        ticket = Ticket(
+        return Ticket(
             channel=channel,
             client_id=client_id,
             category=Category.UNKNOWN,
@@ -33,9 +30,35 @@ class TicketService:
             escalation_target=None,
             resolved_by_ai=False,
             sentiment=Sentiment.NEUTRAL,
-            ticket_metadata={},
+            ticket_metadata=metadata,
         )
-        return await self.ticket_repository.add(ticket)
+
+    async def get_or_create_session(
+        self,
+        channel: Channel,
+        client_id: str,
+        window_minutes: int,
+        channel_metadata: dict[str, Any] | None = None,
+    ) -> Ticket:
+        if (
+            channel == Channel.ZENDESK
+            and channel_metadata
+            and channel_metadata.get("zendesk_ticket_id")
+        ):
+            zendesk_ticket_id = str(channel_metadata["zendesk_ticket_id"])
+            existing = await self.ticket_repository.get_by_zendesk_ticket_id(zendesk_ticket_id)
+            if existing is not None:
+                return existing
+            return await self.ticket_repository.add(
+                self._new_ticket(channel, client_id, {"zendesk_ticket_id": zendesk_ticket_id})
+            )
+
+        active = await self.ticket_repository.get_active(client_id, channel, window_minutes)
+        if active is not None:
+            return active
+        return await self.ticket_repository.add(
+            self._new_ticket(channel, client_id, {})
+        )
 
     async def apply_result(
         self,
