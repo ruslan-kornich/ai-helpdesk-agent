@@ -30,6 +30,17 @@ class TicketRepository(SQLAlchemyRepository[Ticket]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
+    async def get_by_zendesk_ticket_id(self, zendesk_ticket_id: str) -> Ticket | None:
+        statement = (
+            select(Ticket)
+            .where(Ticket.channel == Channel.ZENDESK)
+            .where(Ticket.ticket_metadata["zendesk_ticket_id"].as_string() == str(zendesk_ticket_id))
+            .order_by(Ticket.created_at.desc())
+            .limit(1)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
     async def paginate_filtered(self, filters: dict[str, Any]) -> Page[TicketRead]:
         statement = self._apply_filters(select(Ticket), filters).order_by(Ticket.created_at.desc())
         return await paginate(

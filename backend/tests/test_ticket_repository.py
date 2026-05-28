@@ -88,3 +88,19 @@ async def test_messages_for_ticket_ordered(session):
     )
     history = await message_repository.list_for_ticket(ticket.ticket_id)
     assert [message.text for message in history] == ["first", "second"]
+
+
+@pytest.mark.asyncio
+async def test_get_by_zendesk_ticket_id_found_and_missing(session):
+    repository = TicketRepository(session)
+    ticket = _make_ticket("requester-1")
+    ticket.channel = Channel.ZENDESK
+    ticket.ticket_metadata = {"zendesk_ticket_id": "555"}
+    await repository.add(ticket)
+
+    found = await repository.get_by_zendesk_ticket_id("555")
+    assert found is not None
+    assert found.ticket_metadata["zendesk_ticket_id"] == "555"
+
+    missing = await repository.get_by_zendesk_ticket_id("999")
+    assert missing is None
