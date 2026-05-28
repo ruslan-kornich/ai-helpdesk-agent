@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -66,6 +67,64 @@ class ZendeskChannel(BaseChannel):
     @property
     def enabled(self) -> bool:
         return bool(self.subdomain and self.email and self.api_token)
+
+    @property
+    def base_url(self) -> str:
+        return f"https://{self.subdomain}.zendesk.com/api/v2"
+
+    @property
+    def auth(self) -> tuple[str, str]:
+        return (f"{self.email}/token", self.api_token)
+
+    async def fetch_new_comments(self, since: datetime) -> list[ZendeskInbound]:
+        if not self.enabled:
+            return []
+        query = f"type:ticket updated>={since.strftime('%Y-%m-%d')}"
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                search = await client.get(
+                    f"{self.base_url}/search.json",
+                    params={"query": query, "sort_by": "updated_at", "sort_order": "asc"},
+                    auth=self.auth,
+                )
+                search.raise_for_status()
+                tickets = search.json().get("results", [])
+                comments_by_ticket: dict[str, list[dict]] = {}
+                for ticket in tickets:
+                    zendesk_ticket_id = str(ticket["id"])
+                    response = await client.get(
+                        f"{self.base_url}/tickets/{zendesk_ticket_id}/comments.json",
+                        params={"sort_order": "asc"},
+                        auth=self.auth,
+                    )
+                    response.raise_for_status()
+                    comments_by_ticket[zendesk_ticket_id] = response.json().get("comments", [])
+            return parse_inbounds(tickets, comments_by_ticket)
+        except Exception as error:
+            logger.exception("Zendesk fetch_new_comments failed: {error}", error=error)
+            return []
+
+    async def post_reply(
+        self, zendesk_ticket_id: str, text: str, fields: ZendeskTicketFields
+    ) -> None:
+        if not self.enabled:
+            logger.warning("Zendesk credentials missing; skipping reply")
+            return
+        payload = build_reply_payload(text, fields)
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.put(
+                    f"{self.base_url}/tickets/{zendesk_ticket_id}.json",
+                    json=payload,
+                    auth=self.auth,
+                )
+                response.raise_for_status()
+                logger.info(
+                    "Zendesk reply posted for ticket {ticket_id}",
+                    ticket_id=zendesk_ticket_id,
+                )
+        except Exception as error:
+            logger.exception("Zendesk post_reply failed: {error}", error=error)
 
     async def send(self, client_id: str, text: str) -> None:
         if not self.enabled:
