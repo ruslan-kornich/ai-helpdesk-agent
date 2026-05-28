@@ -130,7 +130,7 @@ class ZendeskChannel(BaseChannel):
         if not self.enabled:
             logger.warning("Zendesk credentials missing; skipping ticket creation")
             return
-        url = f"https://{self.subdomain}.zendesk.com/api/v2/tickets.json"
+        url = f"{self.base_url}/tickets.json"
         payload = {
             "ticket": {
                 "subject": f"Support conversation with {client_id}",
@@ -141,7 +141,7 @@ class ZendeskChannel(BaseChannel):
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.post(
-                    url, json=payload, auth=(f"{self.email}/token", self.api_token)
+                    url, json=payload, auth=self.auth
                 )
                 response.raise_for_status()
                 logger.info("Zendesk ticket created for {client}", client=client_id)
