@@ -100,6 +100,45 @@ async def _telegram_handler_factory(app: FastAPI):
     return handler
 
 
+async def _zendesk_handler_factory(app: FastAPI, zendesk_channel):
+    from app.channels.zendesk_poller import is_new_comment, map_ticket_fields
+    from app.repositories.message_repository import MessageRepository
+    from app.repositories.ticket_repository import TicketRepository
+    from app.services.conversation_service import ConversationService
+    from app.services.ticket_service import TicketService
+
+    async def handler(inbound) -> None:
+        manager = app.state.database_manager
+        async with manager.session_factory() as session:
+            ticket_repository = TicketRepository(session)
+            existing = await ticket_repository.get_by_zendesk_ticket_id(inbound.zendesk_ticket_id)
+            existing_metadata = existing.ticket_metadata if existing is not None else None
+            if not is_new_comment(existing_metadata, inbound.comment_id):
+                return
+            service = ConversationService(
+                session=session,
+                ticket_service=TicketService(ticket_repository),
+                message_repository=MessageRepository(session),
+                context=app.state.context,
+            )
+            reply, ticket = await service.handle_incoming(
+                Channel.ZENDESK,
+                inbound.requester_id,
+                inbound.text,
+                channel_metadata={
+                    "zendesk_ticket_id": inbound.zendesk_ticket_id,
+                    "zendesk_requester_id": inbound.requester_id,
+                    "last_seen_comment_id": inbound.comment_id,
+                },
+                deliver=False,
+            )
+            await zendesk_channel.post_reply(
+                inbound.zendesk_ticket_id, reply, map_ticket_fields(ticket)
+            )
+
+    return handler
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
@@ -124,6 +163,20 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("TELEGRAM_BOT_TOKEN not set; Telegram polling disabled")
 
+    from app.channels.zendesk_poller import ZendeskPoller
+
+    zendesk_channel = app.state.context.channels[Channel.ZENDESK]
+    zendesk_task = None
+    if zendesk_channel.enabled:
+        zendesk_handler = await _zendesk_handler_factory(app, zendesk_channel)
+        zendesk_poller = ZendeskPoller(
+            zendesk_channel, zendesk_handler, settings.ZENDESK_POLL_INTERVAL_SECONDS
+        )
+        zendesk_task = asyncio.create_task(zendesk_poller.run())
+        logger.info("Zendesk polling started")
+    else:
+        logger.warning("Zendesk credentials not set; Zendesk polling disabled")
+
     yield
 
     if dispatcher is not None:
@@ -132,6 +185,10 @@ async def lifespan(app: FastAPI):
         polling_task.cancel()
         with suppress(asyncio.CancelledError):
             await polling_task
+    if zendesk_task is not None:
+        zendesk_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await zendesk_task
     if telegram_bot is not None:
         await telegram_bot.session.close()
     await app.state.database_manager.dispose()
