@@ -22,8 +22,11 @@ Latest client message:
 {text}"""
 
 LANGUAGE_INSTRUCTION = (
-    "Reply in the same language as the client's latest message. "
-    "Mirror their language exactly; never switch to English unless the client wrote in English."
+    "Reply in the language the client is using in this conversation. "
+    "If the latest message is too short or language-neutral to judge (for example just a number, "
+    "a time, or a phone number), use the language from the client's earlier messages in the "
+    "conversation history. Mirror their language exactly; never switch to English unless the "
+    "client has been writing in English."
 )
 
 RESPONDER_HOWTO_SYSTEM_PROMPT = """You are a concise, friendly support agent for an SMS/SMPP platform.
@@ -34,7 +37,19 @@ passing the question to a specialist. Never invent features, prices, or endpoint
 RESPONDER_HOWTO_USER_TEMPLATE = """Knowledge base excerpts:
 {context}
 
-Client question:
+Conversation so far:
+{history}
+
+Latest client message:
+{text}"""
+
+# Acknowledgement replies (billing, delivery, outage, etc.) also get the recent
+# conversation so the LLM keeps the client's language and does not re-ask for
+# details the client already provided in earlier messages.
+RESPONDER_ACK_USER_TEMPLATE = """Conversation so far:
+{history}
+
+Latest client message:
 {text}"""
 
 RESPONDER_BASE_SYSTEM_PROMPT = (

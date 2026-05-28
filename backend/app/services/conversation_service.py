@@ -15,8 +15,15 @@ from app.services.ticket_service import TicketService
 from app.utils.time import local_now
 
 
-def build_history(messages: Sequence[Message]) -> str:
-    return "\n".join(f"{message.role.value}: {message.text}" for message in messages)
+# Only the most recent turns are fed into the agent prompts. This keeps the prompt
+# short and, more importantly, gives the responder enough context to detect the
+# client's language even when their latest message is language-neutral (e.g. "12:00").
+RECENT_HISTORY_LIMIT = 10
+
+
+def build_history(messages: Sequence[Message], limit: int = RECENT_HISTORY_LIMIT) -> str:
+    recent = messages[-limit:]
+    return "\n".join(f"{message.role.value}: {message.text}" for message in recent)
 
 
 class ConversationService:

@@ -48,7 +48,7 @@ class AgentPipeline:
             resolved=decision.resolved_by_ai,
             after_hours=decision.was_after_hours,
         )
-        reply = await self.responder.build(decision, text, persona, ticket_reference)
+        reply = await self.responder.build(decision, text, history, persona, ticket_reference)
         logger.debug("Agent reply | {reply!r}", reply=reply)
         return AgentResult(
             category=decision.category,
