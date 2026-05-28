@@ -100,7 +100,7 @@ async def _telegram_handler_factory(app: FastAPI):
     return handler
 
 
-async def _zendesk_handler_factory(app: FastAPI, zendesk_channel):
+async def _zendesk_handler_factory(app: FastAPI, zendesk_channel: ZendeskChannel):
     from app.channels.zendesk_poller import is_new_comment, map_ticket_fields
     from app.repositories.message_repository import MessageRepository
     from app.repositories.ticket_repository import TicketRepository
