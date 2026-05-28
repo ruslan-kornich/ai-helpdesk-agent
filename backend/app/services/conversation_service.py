@@ -55,7 +55,7 @@ class ConversationService:
             text=text,
         )
         ticket = await self.ticket_service.get_or_create_session(
-            channel, client_id, self.session_window_minutes
+            channel, client_id, self.session_window_minutes, channel_metadata
         )
         prior = await self.message_repository.list_for_ticket(ticket.ticket_id)
         history = build_history(prior)
