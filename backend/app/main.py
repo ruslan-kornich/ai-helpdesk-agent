@@ -1,6 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from typing import cast
 
 from aiogram import Bot
 from fastapi import FastAPI
@@ -164,7 +165,7 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("TELEGRAM_BOT_TOKEN not set; Telegram polling disabled")
 
-    zendesk_channel = app.state.context.channels[Channel.ZENDESK]
+    zendesk_channel = cast(ZendeskChannel, app.state.context.channels[Channel.ZENDESK])
     zendesk_task = None
     if zendesk_channel.enabled:
         zendesk_handler = await _zendesk_handler_factory(app, zendesk_channel)
