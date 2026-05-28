@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     ZENDESK_SUBDOMAIN: str = ""
     ZENDESK_EMAIL: str = ""
     ZENDESK_API_TOKEN: str = ""
+    ZENDESK_POLL_INTERVAL_SECONDS: int = 15
 
     WORKING_HOURS_START: int = 9
     WORKING_HOURS_END: int = 18
