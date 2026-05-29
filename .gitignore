@@ -97,3 +97,5 @@ desktop.ini
 
 # ===== Project =====
 docs/
+*.db
+.playwright-mcp
