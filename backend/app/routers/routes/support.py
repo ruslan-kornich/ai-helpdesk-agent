@@ -1,5 +1,6 @@
 import httpx
 from fastapi import APIRouter
+from loguru import logger
 
 from app.channels.zendesk import ZendeskChannel
 from app.dependencies import ContextDep, MessageRepositoryDep, TicketRepositoryDep
@@ -24,19 +25,42 @@ async def support_chat(
     channel = context.channels[Channel.ZENDESK]
     if not isinstance(channel, ZendeskChannel) or not channel.enabled:
         raise BusinessError("Support channel is not configured", status_code=503)
+    subject = f"Support chat with {payload.name}"
     try:
         requester_id = await channel.find_or_create_end_user(payload.name, payload.email)
         if payload.zendesk_ticket_id:
-            await channel.append_comment_as_requester(
-                payload.zendesk_ticket_id, requester_id, payload.text
-            )
-            zendesk_ticket_id = payload.zendesk_ticket_id
+            try:
+                await channel.append_comment_as_requester(
+                    payload.zendesk_ticket_id, requester_id, payload.text
+                )
+                zendesk_ticket_id = payload.zendesk_ticket_id
+            except httpx.HTTPStatusError as error:
+                # Stale ticket id from a deleted/foreign ticket: open a fresh one.
+                if error.response.status_code != 404:
+                    raise
+                logger.warning(
+                    "Zendesk ticket {ticket_id} not found; creating a new ticket",
+                    ticket_id=payload.zendesk_ticket_id,
+                )
+                zendesk_ticket_id = await channel.create_request_ticket(
+                    requester_id, subject, payload.text
+                )
         else:
-            subject = f"Support chat with {payload.name}"
             zendesk_ticket_id = await channel.create_request_ticket(
                 requester_id, subject, payload.text
             )
+    except httpx.HTTPStatusError as error:
+        logger.error(
+            "Zendesk API error {status} on {url}: {body}",
+            status=error.response.status_code,
+            url=error.request.url,
+            body=error.response.text[:500],
+        )
+        raise BusinessError(
+            "Failed to deliver message to support", status_code=502
+        ) from error
     except httpx.HTTPError as error:
+        logger.error("Zendesk request failed: {error}", error=repr(error))
         raise BusinessError(
             "Failed to deliver message to support", status_code=502
         ) from error
