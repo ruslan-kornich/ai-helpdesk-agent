@@ -4,6 +4,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.db import DatabaseManager
+from app.models.app_setting import AppSetting  # noqa: F401
 from app.models.message import Message  # noqa: F401
 from app.models.ticket import Ticket  # noqa: F401
 

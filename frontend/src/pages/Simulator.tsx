@@ -1,4 +1,4 @@
-import { ArrowUpRight, ExternalLink, SendHorizontal, Sparkles, TerminalSquare } from "lucide-react";
+import { ArrowUpRight, ExternalLink, RotateCcw, SendHorizontal, Sparkles, TerminalSquare } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { simulate } from "../api";
@@ -10,14 +10,26 @@ import type { Channel, Message, Ticket } from "../types";
 
 const CHANNELS: Channel[] = ["whatsapp", "teams", "telegram", "zendesk"];
 
+function randomClientId(): string {
+  return `client-${Math.random().toString(36).slice(2, 6)}`;
+}
+
 export default function Simulator() {
   const [channel, setChannel] = useState<Channel>("whatsapp");
-  const [clientId, setClientId] = useState("demo-client");
+  const [clientId, setClientId] = useState(randomClientId);
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [busy, setBusy] = useState(false);
   const nextMessageId = useRef(0);
+
+  function startNewConversation() {
+    setClientId(randomClientId());
+    setMessages([]);
+    setTicket(null);
+    setText("");
+    nextMessageId.current = 0;
+  }
 
   async function send() {
     if (!text.trim()) return;
@@ -80,6 +92,14 @@ export default function Simulator() {
             onChange={(event) => setClientId(event.target.value)}
             placeholder="client id"
           />
+          <button
+            onClick={startNewConversation}
+            disabled={busy}
+            className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-[13px] font-semibold text-muted transition-all hover:text-ink disabled:opacity-50"
+          >
+            <RotateCcw size={15} strokeWidth={2.3} />
+            New chat
+          </button>
         </div>
       </div>
 

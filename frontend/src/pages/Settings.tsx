@@ -1,8 +1,18 @@
-import { Check, Clock, Globe, MessageSquareQuote, Save, Settings as SettingsIcon } from "lucide-react";
+import { Check, Clock, Globe, Save, Settings as SettingsIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchSettings, saveSettings } from "../api";
 import PageHeader from "../ui/PageHeader";
 import type { BotSettings } from "../types";
+
+const TIMEZONES = [
+  "Europe/Kyiv",
+  "Europe/Warsaw",
+  "Europe/London",
+  "Europe/Berlin",
+  "Europe/Istanbul",
+  "America/New_York",
+  "Asia/Dubai",
+];
 
 export default function Settings() {
   const [settings, setSettings] = useState<BotSettings | null>(null);
@@ -37,7 +47,7 @@ export default function Settings() {
         icon={SettingsIcon}
         title="Agent"
         accent="settings"
-        subtitle="Tune working hours, timezone and the agent's persona."
+        subtitle="Tune working hours and timezone."
       />
 
       <div className="space-y-5">
@@ -60,20 +70,17 @@ export default function Settings() {
               <span className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-ink-soft">
                 <Globe size={13} strokeWidth={2.3} /> Timezone
               </span>
-              <input className="field" value={settings.timezone}
-                onChange={(event) => update({ timezone: event.target.value })} />
+              <select className="field" value={settings.timezone}
+                onChange={(event) => update({ timezone: event.target.value })}>
+                {!TIMEZONES.includes(settings.timezone) && (
+                  <option value={settings.timezone}>{settings.timezone}</option>
+                )}
+                {TIMEZONES.map((zone) => (
+                  <option key={zone} value={zone}>{zone}</option>
+                ))}
+              </select>
             </label>
           </div>
-        </div>
-
-        <div className="card p-6">
-          <div className="mb-5 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-muted">
-            <MessageSquareQuote size={14} strokeWidth={2.3} /> Agent persona
-          </div>
-          <textarea rows={7} className="field resize-y font-mono text-[13px] leading-relaxed"
-            value={settings.system_prompt}
-            placeholder="e.g. Reply formally and concisely, always confirm receipt…"
-            onChange={(event) => update({ system_prompt: event.target.value })} />
         </div>
 
         <div className="flex items-center gap-3">

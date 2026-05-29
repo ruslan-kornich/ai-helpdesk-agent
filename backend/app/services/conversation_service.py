@@ -14,7 +14,6 @@ from app.schemas.ticket import TicketRead
 from app.services.ticket_service import TicketService
 from app.utils.time import local_now
 
-
 # Only the most recent turns are fed into the agent prompts. This keeps the prompt
 # short and, more importantly, gives the responder enough context to detect the
 # client's language even when their latest message is language-neutral (e.g. "12:00").
@@ -72,7 +71,7 @@ class ConversationService:
         now = local_now(self.context.timezone)
         ticket_reference = f"#{ticket.ticket_id[:8]}"
         result = await self.context.pipeline.run(
-            text, history, now, self.context.system_prompt, ticket_reference
+            text, history, now, self.context.timezone, self.context.system_prompt, ticket_reference
         )
 
         await self.message_repository.add(

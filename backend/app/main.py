@@ -17,7 +17,11 @@ from app.agent.pipeline import AgentPipeline
 from app.agent.responder import Responder
 from app.agent.router import RouterConfig
 from app.channels.mock import MockChannel
-from app.channels.telegram import TelegramChannel, build_telegram_dispatcher
+from app.channels.telegram import (
+    _ERROR_FALLBACK_TEMPLATE,
+    TelegramChannel,
+    build_telegram_dispatcher,
+)
 from app.channels.zendesk import ZendeskChannel, ZendeskInbound
 from app.channels.zendesk_poller import ZendeskPoller
 from app.config.db import build_database_manager
@@ -25,11 +29,15 @@ from app.config.logger import setup_logging
 from app.config.settings import get_settings
 from app.context import AppContext
 from app.knowledge.retriever import KeywordRetriever
+from app.models.app_setting import AppSetting
 from app.models.enums import Channel
+from app.repositories.settings_repository import SettingsRepository
 from app.routers.api import public_router
 from app.routers.routes import ws
 from app.services.escalation_service import EscalationService
+from app.services.settings_service import SettingsService
 from app.utils.exceptions import BusinessError, business_exception_handler
+from app.utils.time import format_working_hours
 from app.utils.websocket_manager import WebSocketManager
 
 _FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -39,24 +47,18 @@ _DEFAULT_PERSONA = (
 )
 
 
-def _build_context(telegram_bot: Bot | None) -> AppContext:
+def _build_context(telegram_bot: Bot | None, persisted: AppSetting) -> AppContext:
     settings = get_settings()
     llm = OpenAIProvider(api_key=settings.OPENAI_API_KEY, model=settings.OPENAI_MODEL)
     retriever = KeywordRetriever()
     router_config = RouterConfig(
         confidence_threshold=settings.CONFIDENCE_THRESHOLD,
-        working_hours_start=settings.WORKING_HOURS_START,
-        working_hours_end=settings.WORKING_HOURS_END,
+        working_hours_start=persisted.working_hours_start,
+        working_hours_end=persisted.working_hours_end,
     )
     pipeline = AgentPipeline(
         analyzer=Analyzer(llm),
-        responder=Responder(
-            llm,
-            retriever,
-            working_hours_start=settings.WORKING_HOURS_START,
-            working_hours_end=settings.WORKING_HOURS_END,
-            timezone=settings.TIMEZONE,
-        ),
+        responder=Responder(llm, retriever),
         config=router_config,
     )
     websocket_manager = WebSocketManager()
@@ -77,7 +79,7 @@ def _build_context(telegram_bot: Bot | None) -> AppContext:
         websocket_manager=websocket_manager,
         escalation_service=EscalationService(websocket_manager, settings.SUPPORT_LEAD_CHANNEL),
         channels=channels,
-        timezone=settings.TIMEZONE,
+        timezone=persisted.timezone,
         system_prompt=_DEFAULT_PERSONA,
     )
 
@@ -90,14 +92,28 @@ async def _telegram_handler_factory(app: FastAPI):
 
     async def handler(chat_id: str, text: str, metadata: dict) -> None:
         manager = app.state.database_manager
-        async with manager.session_factory() as session:
-            service = ConversationService(
-                session=session,
-                ticket_service=TicketService(TicketRepository(session)),
-                message_repository=MessageRepository(session),
-                context=app.state.context,
+        try:
+            async with manager.session_factory() as session:
+                service = ConversationService(
+                    session=session,
+                    ticket_service=TicketService(TicketRepository(session)),
+                    message_repository=MessageRepository(session),
+                    context=app.state.context,
+                )
+                await service.handle_incoming(Channel.TELEGRAM, chat_id, text, metadata)
+        except Exception as error:
+            # The session rolls back automatically when the context manager exits on
+            # error. Without this the client would get silence; instead send a greeting
+            # with the live working hours so they know we will follow up.
+            logger.exception("Telegram message handling failed: {error}", error=error)
+            context = app.state.context
+            working_hours = format_working_hours(
+                context.router_config.working_hours_start,
+                context.router_config.working_hours_end,
+                context.timezone,
             )
-            await service.handle_incoming(Channel.TELEGRAM, chat_id, text, metadata)
+            fallback = _ERROR_FALLBACK_TEMPLATE.format(working_hours=working_hours)
+            await context.channels[Channel.TELEGRAM].send(chat_id, fallback)
 
     return handler
 
@@ -148,8 +164,14 @@ async def lifespan(app: FastAPI):
     app.state.database_manager = build_database_manager()
     await app.state.database_manager.create_all()
 
+    async with app.state.database_manager.session_factory() as session:
+        persisted = await SettingsService(SettingsRepository(session)).get_or_create(
+            settings.WORKING_HOURS_START, settings.WORKING_HOURS_END, settings.TIMEZONE
+        )
+        await session.commit()
+
     telegram_bot = Bot(settings.TELEGRAM_BOT_TOKEN) if settings.TELEGRAM_BOT_TOKEN else None
-    app.state.context = _build_context(telegram_bot)
+    app.state.context = _build_context(telegram_bot, persisted)
 
     polling_task = None
     dispatcher = None

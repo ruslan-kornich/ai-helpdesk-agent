@@ -60,7 +60,6 @@ export interface BotSettings {
   working_hours_start: number;
   working_hours_end: number;
   timezone: string;
-  system_prompt: string;
 }
 
 export interface TicketFilters {

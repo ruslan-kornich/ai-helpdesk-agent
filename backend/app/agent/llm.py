@@ -81,7 +81,8 @@ class OpenAIProvider(LLMProvider):
         elapsed_ms = (time.perf_counter() - started_at) * 1000
         content = (response.choices[0].message.content or "").strip()
         logger.debug(
-            "OpenAI text response | elapsed_ms={elapsed:.0f} usage={usage}\n--- content ---\n{content}",
+            "OpenAI text response | elapsed_ms={elapsed:.0f} usage={usage}\n"
+            "--- content ---\n{content}",
             elapsed=elapsed_ms,
             usage=response.usage.model_dump() if response.usage else None,
             content=content,
