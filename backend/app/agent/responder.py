@@ -9,6 +9,7 @@ from app.agent.prompts import (
     RESPONDER_CATEGORY_INSTRUCTIONS,
     RESPONDER_HOWTO_SYSTEM_PROMPT,
     RESPONDER_HOWTO_USER_TEMPLATE,
+    WORKING_HOURS_CONTEXT,
 )
 from app.agent.router import AgentAction, RouterDecision
 from app.knowledge.retriever import Retriever
@@ -71,14 +72,20 @@ class Responder:
         ticket_reference: str = "",
     ) -> str:
         """Route to a knowledge-base answer for how-to questions, else an acknowledgement reply."""
+        working_hours_context = WORKING_HOURS_CONTEXT.format(
+            working_hours=format_working_hours(
+                working_hours_start, working_hours_end, timezone
+            )
+        )
         if decision.action == AgentAction.ANSWER and decision.category == Category.HOW_TO:
-            return await self._answer_how_to(text, history, persona)
+            return await self._answer_how_to(text, working_hours_context, history, persona)
         return await self._acknowledge(
             decision.category,
             text,
             working_hours_start,
             working_hours_end,
             timezone,
+            working_hours_context,
             history,
             persona,
             ticket_reference,
@@ -91,23 +98,28 @@ class Responder:
         working_hours_start: int,
         working_hours_end: int,
         timezone: str,
+        working_hours_context: str,
         history: str,
         persona: str,
         ticket_reference: str,
     ) -> str:
         fallback = _CANNED_REPLIES.get(category, _CANNED_REPLIES[Category.UNKNOWN])
         if category == Category.AFTER_HOURS:
+            # After-hours already states the working hours in its own instruction.
             instruction = RESPONDER_AFTER_HOURS_INSTRUCTION.format(
                 working_hours=format_working_hours(
                     working_hours_start, working_hours_end, timezone
                 ),
                 ticket_reference=ticket_reference or "your support ticket",
             )
+            working_hours_context = ""
         else:
             instruction = RESPONDER_CATEGORY_INSTRUCTIONS.get(category.value)
         if instruction is None:
             return fallback
         base = f"{persona}\n\n{RESPONDER_BASE_SYSTEM_PROMPT}" if persona else RESPONDER_BASE_SYSTEM_PROMPT
+        if working_hours_context:
+            base = f"{base}\n\n{working_hours_context}"
         system_prompt = f"{base}\n\n{instruction}\n\n{LANGUAGE_INSTRUCTION}"
         user_prompt = RESPONDER_ACK_USER_TEMPLATE.format(history=history or "(none)", text=text)
         try:
@@ -117,7 +129,9 @@ class Responder:
             logger.exception("Responder acknowledge LLM call failed: {error}", error=error)
             return fallback
 
-    async def _answer_how_to(self, text: str, history: str = "", persona: str = "") -> str:
+    async def _answer_how_to(
+        self, text: str, working_hours_context: str = "", history: str = "", persona: str = ""
+    ) -> str:
         """Answer from the retrieved FAQ chunks, widening to the full FAQ or a fallback when empty."""
         chunks = self.retriever.search(text, top_k=3)
         logger.debug(
@@ -143,6 +157,8 @@ class Responder:
             if persona
             else RESPONDER_HOWTO_SYSTEM_PROMPT
         )
+        if working_hours_context:
+            base = f"{base}\n\n{working_hours_context}"
         system_prompt = f"{base}\n\n{LANGUAGE_INSTRUCTION}"
         user_prompt = RESPONDER_HOWTO_USER_TEMPLATE.format(
             context=context, history=history or "(none)", text=text
