@@ -21,6 +21,8 @@ Open http://localhost:8000 — the admin panel, REST API, WebSocket, and (if a t
 the in-process Telegram bot all run in the single `app` container. PostgreSQL runs as the
 `db` container with a persistent named volume.
 
+- Create an admin user: `make create-user` (prompts for email + password, like Django's
+  `createsuperuser`; re-running with an existing email resets that user's password)
 - Analytics from the CLI: `make report`
 - Load demo tickets: `make seed`
 - Run unit tests (host): `make test`
