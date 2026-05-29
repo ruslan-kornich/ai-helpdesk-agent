@@ -25,6 +25,28 @@ the in-process Telegram bot all run in the single `app` container. PostgreSQL ru
 - Load demo tickets: `make seed`
 - Run unit tests (host): `make test`
 
+<details>
+<summary>Without <code>make</code> (Windows, or any machine without GNU Make)</summary>
+
+The `make` targets are thin wrappers over `docker compose`. Run these directly instead:
+
+```bash
+cp .env.example .env                # then fill in OPENAI_API_KEY
+
+docker compose up --build           # = make run    (start app + db)
+docker compose down                 # = make down   (stop everything)
+docker compose build                # = make build  (rebuild images only)
+
+docker compose exec app uv run python -m app.cli report    # = make report
+docker compose exec app uv run python -m app.seed          # = make seed
+docker compose exec app uv run python -m app.create_user   # = make create-user
+
+cd backend && uv run pytest -v      # = make test   (runs on host, needs uv)
+```
+
+The `exec` commands require the stack to be already running (`docker compose up`).
+</details>
+
 ### Getting a Telegram token
 Message [@BotFather](https://t.me/BotFather), `/newbot`, copy the token into
 `TELEGRAM_BOT_TOKEN`. Long-polling is used, so no public URL/tunnel is needed.
@@ -52,28 +74,99 @@ cd backend && uv sync && uv run uvicorn app.main:app --port 8000
 cd frontend && npm install && npm run dev    # :5173 with proxy to :8000
 ```
 
+## Configuration (environment variables)
+
+All variables live in `.env` (copy from `.env.example`). Every one has a default, so the app
+**boots even with an empty `.env`** — but without `OPENAI_API_KEY` replies fall back to
+deterministic templates, and the default `JWT_SECRET` is insecure. Set the essentials for a
+real demo.
+
+**Essentials**
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `OPENAI_API_KEY` | _(empty)_ | Needed for live AI replies; empty → deterministic template fallback. |
+| `OPENAI_MODEL` | `gpt-4.1` | Model used by the analyzer/responder. |
+| `DATABASE_URL` | `postgresql+asyncpg://gatum:gatum@db:5432/gatum` | Async SQLAlchemy URL. Preset for the compose `db` service. |
+| `JWT_SECRET` | `CHANGE_ME` | **Change for any non-local use** — signs admin-panel auth tokens. |
+
+**Postgres container** (used by the `db` service in `docker-compose.yml`)
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `gatum` / `gatum` / `gatum` | Must match the credentials in `DATABASE_URL`. |
+
+**Optional integrations** (leave empty to disable — the channel is treated as unavailable, no crash)
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `TELEGRAM_BOT_TOKEN` | _(empty)_ | From [@BotFather](https://t.me/BotFather); enables the in-process Telegram poller. |
+| `ZENDESK_SUBDOMAIN` | _(empty)_ | The `xxx` in `xxx.zendesk.com`. |
+| `ZENDESK_EMAIL` | _(empty)_ | Zendesk account email for API auth. |
+| `ZENDESK_API_TOKEN` | _(empty)_ | API token from Admin Center → APIs. |
+| `ZENDESK_POLL_INTERVAL_SECONDS` | `15` | How often the inbound poller checks for new comments. |
+| `SUPPORT_LEAD_CHANNEL` | _(empty)_ | Where C-8 complaint notifications are flagged. |
+
+**Behavior tuning & auth**
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `WORKING_HOURS_START` / `WORKING_HOURS_END` | `9` / `18` | Business hours (24h); drives the `after_hours` category. |
+| `TIMEZONE` | `Europe/Kyiv` | Timezone for working-hours checks. |
+| `SESSION_WINDOW_MINUTES` | `30` | Window for appending to an existing ticket vs. opening a new one. |
+| `CONFIDENCE_THRESHOLD` | `0.55` | Below this, intent routes to `unknown` (C-7). |
+| `LOG_LEVEL` | `INFO` | loguru sink level. |
+| `JWT_ALGORITHM` | `HS256` | Token signing algorithm. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Access-token lifetime. |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh-token lifetime. |
+
 ## Architecture
 
 ```mermaid
 flowchart TD
-  subgraph Channels
+  subgraph Channels["Channels (infra adapters)"]
     TG[Telegram bot] --> CS
     SIM[Simulator / mock WhatsApp+Teams] --> CS
     ZD[Zendesk inbound poller] --> CS
   end
-  CS[conversation_service] --> TR[(ticket_repository)]
-  CS --> MR[(message_repository)]
-  CS --> AP[agent.pipeline]
-  AP --> AN[analyzer · 1 GPT-4o call]
-  AP --> RT[router · pure logic]
-  AP --> RS[responder + retriever]
-  CS --> TS[ticket_service]
-  CS --> ES[escalation_service]
+
+  subgraph Services["Services (orchestration)"]
+    CS[conversation_service]
+    TS[ticket_service]
+    ES[escalation_service]
+  end
+
+  subgraph Agent["agent/ (pure, no DB)"]
+    AP[agent.pipeline]
+    AN[analyzer · 1 GPT-4o call]
+    RT[router · pure logic]
+    RS[responder + retriever]
+  end
+
+  subgraph Persistence["Persistence"]
+    TR[(ticket_repository)]
+    MR[(message_repository)]
+    DB[(PostgreSQL)]
+  end
+
+  CS --> TS
+  CS --> ES
   CS --> ZD
+  CS --> AP
+  AP --> AN
+  AP --> RT
+  AP --> RS
+  CS --> TR
+  CS --> MR
+  TR --> DB
+  MR --> DB
   CS --> WS[[WebSocket broadcast]]
   WS --> UI[React admin]
-  TR --> DB[(PostgreSQL)]
-  MR --> DB
+
+  classDef external fill:#e7f0ff,stroke:#4577c9,color:#1c2e4a;
+  classDef store fill:#eafaf0,stroke:#3a9d6a,color:#143527;
+  class TG,SIM,ZD,UI external;
+  class TR,MR,DB store;
 ```
 
 Layered (onion) dependency flow: `models → repositories → schemas → services → routers`, with
