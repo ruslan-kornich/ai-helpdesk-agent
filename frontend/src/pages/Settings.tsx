@@ -14,6 +14,8 @@ const TIMEZONES = [
   "Asia/Dubai",
 ];
 
+const formatHour = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
+
 export default function Settings() {
   const [settings, setSettings] = useState<BotSettings | null>(null);
   const [status, setStatus] = useState("");
@@ -32,6 +34,14 @@ export default function Settings() {
 
   function update(patch: Partial<BotSettings>) {
     setSettings((current) => (current ? { ...current, ...patch } : current));
+  }
+
+  function updateStartHour(startHour: number) {
+    setSettings((current) => {
+      if (!current) return current;
+      const endHour = current.working_hours_end <= startHour ? startHour + 1 : current.working_hours_end;
+      return { ...current, working_hours_start: startHour, working_hours_end: endHour };
+    });
   }
 
   async function save() {
@@ -58,14 +68,28 @@ export default function Settings() {
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1.5 block text-[13px] font-semibold text-ink-soft">Start hour</span>
-              <input type="number" min={0} max={23} className="field" value={settings.working_hours_start}
-                onChange={(event) => update({ working_hours_start: Number(event.target.value) })} />
+              <select className="field" value={settings.working_hours_start}
+                onChange={(event) => updateStartHour(Number(event.target.value))}>
+                {Array.from({ length: 24 }, (_, hour) => (
+                  <option key={hour} value={hour}>{formatHour(hour)}</option>
+                ))}
+              </select>
             </label>
             <label className="block">
               <span className="mb-1.5 block text-[13px] font-semibold text-ink-soft">End hour</span>
-              <input type="number" min={0} max={23} className="field" value={settings.working_hours_end}
-                onChange={(event) => update({ working_hours_end: Number(event.target.value) })} />
+              <select className="field" value={settings.working_hours_end}
+                onChange={(event) => update({ working_hours_end: Number(event.target.value) })}>
+                {Array.from({ length: 24 - settings.working_hours_start }, (_, offset) => {
+                  const hour = settings.working_hours_start + 1 + offset;
+                  return <option key={hour} value={hour}>{formatHour(hour)}</option>;
+                })}
+              </select>
             </label>
+            <p className="sm:col-span-2 -mt-1 text-[13px] text-muted">
+              Working hours: <span className="font-semibold text-ink-soft">
+                {formatHour(settings.working_hours_start)}</span> to <span className="font-semibold text-ink-soft">
+                {formatHour(settings.working_hours_end)}</span>
+            </p>
             <label className="block sm:col-span-2">
               <span className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-ink-soft">
                 <Globe size={13} strokeWidth={2.3} /> Timezone
