@@ -5,7 +5,6 @@ import {
   Lock,
   Mail,
   MessageSquareText,
-  ShieldCheck,
   Sparkles,
   Zap,
 } from "lucide-react";
@@ -59,13 +58,13 @@ export default function Login() {
 
         <div className="relative mt-auto max-w-md">
           <h1 className="font-display text-[2.6rem] font-extrabold leading-[1.05]">
-            Support that never
+            One AI agent.
             <br />
-            sleeps.
+            Every channel.
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-white/85">
-            The multichannel AI agent for your SMS platform — it answers, classifies, and
-            escalates every conversation, then turns it into a clean ticket.
+            The multichannel AI support agent for Gatum's messaging platform — it answers,
+            classifies and escalates every conversation, then turns it into a clean ticket.
           </p>
 
           <ul className="mt-9 space-y-4">
@@ -81,11 +80,6 @@ export default function Login() {
               </li>
             ))}
           </ul>
-        </div>
-
-        <div className="relative mt-12 flex items-center gap-2 text-[13px] text-white/80">
-          <ShieldCheck size={16} strokeWidth={2.2} />
-          Secrets stay in env · JWT sessions · single-origin deploy
         </div>
       </aside>
 
