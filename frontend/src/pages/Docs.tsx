@@ -74,11 +74,39 @@ const SECTION_IDS = NAV.flatMap((group) => group.items.map((item) => item.id));
 
 /* ── Primitives ─────────────────────────────────────────────── */
 
+// Works on non-secure origins (e.g. http://0.0.0.0:8000) where
+// navigator.clipboard is unavailable, by falling back to execCommand.
+async function copyText(text: string): Promise<boolean> {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fall through to the legacy path
+    }
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-9999px";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 function CodeBlock({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
-    await navigator.clipboard.writeText(code);
+    if (!(await copyText(code))) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -112,7 +140,7 @@ function CopyPhrase({ lang, text }: { lang: string; text: string }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
-    await navigator.clipboard.writeText(text);
+    if (!(await copyText(text))) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
