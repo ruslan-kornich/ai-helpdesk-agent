@@ -115,7 +115,16 @@ async def _telegram_handler_factory(app: FastAPI):
             fallback = _ERROR_FALLBACK_TEMPLATE.format(working_hours=working_hours)
             await context.channels[Channel.TELEGRAM].send(chat_id, fallback)
 
-    return handler
+    async def reset_handler(chat_id: str) -> None:
+        manager = app.state.database_manager
+        async with manager.session_factory() as session:
+            ticket_service = TicketService(TicketRepository(session))
+            await ticket_service.reset_session(
+                Channel.TELEGRAM, chat_id, get_settings().SESSION_WINDOW_MINUTES
+            )
+            await session.commit()
+
+    return handler, reset_handler
 
 
 async def _zendesk_handler_factory(app: FastAPI, zendesk_channel: ZendeskChannel):
@@ -176,8 +185,8 @@ async def lifespan(app: FastAPI):
     polling_task = None
     dispatcher = None
     if telegram_bot is not None:
-        handler = await _telegram_handler_factory(app)
-        dispatcher = build_telegram_dispatcher(handler)
+        handler, reset_handler = await _telegram_handler_factory(app)
+        dispatcher = build_telegram_dispatcher(handler, reset_handler)
         polling_task = asyncio.create_task(
             dispatcher.start_polling(
                 telegram_bot, handle_signals=False, close_bot_session=False

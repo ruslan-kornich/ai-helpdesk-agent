@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
-from sqlalchemy import select
+from sqlalchemy import select, update, update
 
 from app.models.enums import Channel
 from app.models.ticket import Ticket
@@ -29,6 +29,27 @@ class TicketRepository(SQLAlchemyRepository[Ticket]):
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+
+    async def expire_active_sessions(
+        self, client_id: str, channel: Channel, window_minutes: int
+    ) -> int:
+        """Push the client's active sessions out of the reuse window.
+
+        Sets ``updated_at`` to the Unix epoch on every ticket currently inside the
+        ``window_minutes`` window, so the next inbound message opens a fresh ticket
+        instead of reusing the existing context. Returns the number of tickets expired.
+        """
+        threshold = datetime.now(UTC) - timedelta(minutes=window_minutes)
+        expired_at = datetime(1970, 1, 1, tzinfo=UTC)
+        statement = (
+            update(Ticket)
+            .where(Ticket.client_id == client_id)
+            .where(Ticket.channel == channel)
+            .where(Ticket.updated_at >= threshold)
+            .values(updated_at=expired_at)
+        )
+        result = await self.session.execute(statement)
+        return result.rowcount
 
     async def get_by_zendesk_ticket_id(self, zendesk_ticket_id: str) -> Ticket | None:
         statement = (
