@@ -5,6 +5,8 @@ from app.models.enums import Channel
 
 
 class MockChannel(BaseChannel):
+    """Channel stub that logs outbound replies instead of sending them, for tests and local runs."""
+
     def __init__(self, channel: Channel) -> None:
         self.channel = channel
 

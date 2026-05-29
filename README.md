@@ -21,9 +21,33 @@ Open http://localhost:8000 — the admin panel, REST API, WebSocket, and (if a t
 the in-process Telegram bot all run in the single `app` container. PostgreSQL runs as the
 `db` container with a persistent named volume.
 
+- Create an admin user: `make create-user` (prompts for email + password, like Django's
+  `createsuperuser`; re-running with an existing email resets that user's password)
 - Analytics from the CLI: `make report`
 - Load demo tickets: `make seed`
 - Run unit tests (host): `make test`
+
+<details>
+<summary>Without <code>make</code> (Windows, or any machine without GNU Make)</summary>
+
+The `make` targets are thin wrappers over `docker compose`. Run these directly instead:
+
+```bash
+cp .env.example .env                # then fill in OPENAI_API_KEY
+
+docker compose up --build           # = make run    (start app + db)
+docker compose down                 # = make down   (stop everything)
+docker compose build                # = make build  (rebuild images only)
+
+docker compose exec app uv run python -m app.cli report    # = make report
+docker compose exec app uv run python -m app.seed          # = make seed
+docker compose exec app uv run python -m app.create_user   # = make create-user
+
+cd backend && uv run pytest -v      # = make test   (runs on host, needs uv)
+```
+
+The `exec` commands require the stack to be already running (`docker compose up`).
+</details>
 
 ### Getting a Telegram token
 Message [@BotFather](https://t.me/BotFather), `/newbot`, copy the token into
@@ -52,28 +76,71 @@ cd backend && uv sync && uv run uvicorn app.main:app --port 8000
 cd frontend && npm install && npm run dev    # :5173 with proxy to :8000
 ```
 
+## Configuration (environment variables)
+
+Copy `.env.example` → `.env`. Every variable has a default, so the app **boots even with an
+empty `.env`** — but without `OPENAI_API_KEY` replies fall back to deterministic templates.
+Set these for a real demo:
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `OPENAI_API_KEY` | _(empty)_ | Needed for live AI replies; empty → deterministic template fallback. |
+| `OPENAI_MODEL` | `gpt-4.1` | Model used by the analyzer/responder. |
+| `TELEGRAM_BOT_TOKEN` | _(empty)_ | From [@BotFather](https://t.me/BotFather); enables the in-process Telegram poller. Leave empty to disable. |
+| `ZENDESK_SUBDOMAIN` / `ZENDESK_EMAIL` / `ZENDESK_API_TOKEN` | _(empty)_ | Optional — enables the Zendesk inbound poller. Leave empty to disable (no crash). |
+| `DATABASE_URL` | `postgresql+asyncpg://…@db:5432/gatum` | Async SQLAlchemy URL; preset for the compose `db` service. |
+| `JWT_SECRET` | `CHANGE_ME` | **Change for any non-local use** — signs admin-panel auth tokens. |
+
+The full list — Postgres credentials, working hours, timezone, confidence threshold, token
+lifetimes — lives in [`.env.example`](.env.example) with sensible defaults.
+
 ## Architecture
 
 ```mermaid
 flowchart TD
-  subgraph Channels
+  subgraph Channels["Channels (infra adapters)"]
     TG[Telegram bot] --> CS
     SIM[Simulator / mock WhatsApp+Teams] --> CS
     ZD[Zendesk inbound poller] --> CS
   end
-  CS[conversation_service] --> TR[(ticket_repository)]
-  CS --> MR[(message_repository)]
-  CS --> AP[agent.pipeline]
-  AP --> AN[analyzer · 1 GPT-4o call]
-  AP --> RT[router · pure logic]
-  AP --> RS[responder + retriever]
-  CS --> TS[ticket_service]
-  CS --> ES[escalation_service]
+
+  subgraph Services["Services (orchestration)"]
+    CS[conversation_service]
+    TS[ticket_service]
+    ES[escalation_service]
+  end
+
+  subgraph Agent["agent/ (pure, no DB)"]
+    AP[agent.pipeline]
+    AN[analyzer · 1 GPT-4o call]
+    RT[router · pure logic]
+    RS[responder + retriever]
+  end
+
+  subgraph Persistence["Persistence"]
+    TR[(ticket_repository)]
+    MR[(message_repository)]
+    DB[(PostgreSQL)]
+  end
+
+  CS --> TS
+  CS --> ES
   CS --> ZD
+  CS --> AP
+  AP --> AN
+  AP --> RT
+  AP --> RS
+  CS --> TR
+  CS --> MR
+  TR --> DB
+  MR --> DB
   CS --> WS[[WebSocket broadcast]]
   WS --> UI[React admin]
-  TR --> DB[(PostgreSQL)]
-  MR --> DB
+
+  classDef external fill:#e7f0ff,stroke:#4577c9,color:#1c2e4a;
+  classDef store fill:#eafaf0,stroke:#3a9d6a,color:#143527;
+  class TG,SIM,ZD,UI external;
+  class TR,MR,DB store;
 ```
 
 Layered (onion) dependency flow: `models → repositories → schemas → services → routers`, with

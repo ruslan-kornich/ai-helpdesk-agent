@@ -28,6 +28,7 @@ class ZendeskTicketFields:
 def parse_inbounds(
     tickets: list[dict[str, Any]], comments_by_ticket: dict[str, list[dict[str, Any]]]
 ) -> list[ZendeskInbound]:
+    """Flatten Zendesk tickets and their comments into a single list of inbound records."""
     inbounds: list[ZendeskInbound] = []
     for ticket in tickets:
         zendesk_ticket_id = str(ticket["id"])
@@ -89,6 +90,11 @@ def build_requester_comment_payload(requester_id: str, text: str) -> dict[str, A
 
 
 class ZendeskChannel(BaseChannel):
+    """Zendesk REST client for polling requester comments and posting tickets and replies.
+
+    All methods no-op when credentials are missing (see ``enabled``).
+    """
+
     channel = Channel.ZENDESK
 
     def __init__(self, subdomain: str, email: str, api_token: str) -> None:
@@ -109,6 +115,10 @@ class ZendeskChannel(BaseChannel):
         return (f"{self.email}/token", self.api_token)
 
     async def fetch_new_comments(self, since: datetime) -> list[ZendeskInbound]:
+        """Search tickets updated since ``since`` and return their comments as inbound records.
+
+        Network or API errors are logged and swallowed as an empty list so the poller keeps running.
+        """
         if not self.enabled:
             return []
         query = f"type:ticket updated>={since.strftime('%Y-%m-%d')}"

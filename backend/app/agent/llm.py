@@ -10,6 +10,8 @@ SchemaType = TypeVar("SchemaType", bound=BaseModel)
 
 
 class LLMProvider(ABC):
+    """Abstract LLM interface decoupling the agent from any specific provider."""
+
     @abstractmethod
     async def complete_structured(
         self, system_prompt: str, user_prompt: str, schema: type[SchemaType]
@@ -20,6 +22,8 @@ class LLMProvider(ABC):
 
 
 class OpenAIProvider(LLMProvider):
+    """LLMProvider backed by the OpenAI API with a lazily created async client."""
+
     def __init__(self, api_key: str, model: str) -> None:
         self.api_key = api_key
         self.model = model

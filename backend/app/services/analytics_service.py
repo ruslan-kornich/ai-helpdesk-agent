@@ -13,6 +13,7 @@ def _rate(part: int, total: int) -> float:
 
 
 def compute_report(tickets: Sequence[Ticket]) -> AnalyticsReport:
+    """Aggregate tickets into channel, category, sentiment, and daily-volume breakdowns."""
     total = len(tickets)
     by_channel = Counter(ticket.channel.value for ticket in tickets)
     by_category = Counter(ticket.category.value for ticket in tickets)
@@ -40,6 +41,8 @@ def compute_report(tickets: Sequence[Ticket]) -> AnalyticsReport:
 
 
 class AnalyticsService:
+    """Loads all tickets and turns them into an aggregated analytics report."""
+
     def __init__(self, ticket_repository: TicketRepository) -> None:
         self.ticket_repository = ticket_repository
 

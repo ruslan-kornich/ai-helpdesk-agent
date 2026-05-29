@@ -52,6 +52,9 @@ _CANNED_REPLIES: dict[Category, str] = {
 
 
 class Responder:
+    """Generates the client-facing reply, answering how-to questions from the knowledge base
+    and acknowledging every other category with a category-specific message."""
+
     def __init__(self, llm: LLMProvider, retriever: Retriever) -> None:
         self.llm = llm
         self.retriever = retriever
@@ -67,6 +70,7 @@ class Responder:
         persona: str = "",
         ticket_reference: str = "",
     ) -> str:
+        """Route to a knowledge-base answer for how-to questions, else an acknowledgement reply."""
         if decision.action == AgentAction.ANSWER and decision.category == Category.HOW_TO:
             return await self._answer_how_to(text, history, persona)
         return await self._acknowledge(
@@ -114,6 +118,7 @@ class Responder:
             return fallback
 
     async def _answer_how_to(self, text: str, history: str = "", persona: str = "") -> str:
+        """Answer from the retrieved FAQ chunks, widening to the full FAQ or a fallback when empty."""
         chunks = self.retriever.search(text, top_k=3)
         logger.debug(
             "Responder how_to | query={query!r} faq_chunks_found={count}",
