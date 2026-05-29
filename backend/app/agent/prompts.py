@@ -69,6 +69,15 @@ RESPONDER_BASE_SYSTEM_PROMPT = (
     "Do not invent prices, wallet addresses, payment details, features, or API endpoints."
 )
 
+# Working-hours fact injected into every responder system prompt (except after-hours,
+# which already states the hours in its own instruction) so the bot can answer questions
+# like "when do you work?" or "when will I get a reply?" in any category.
+WORKING_HOURS_CONTEXT = (
+    "For your reference, the support team's working hours are: {working_hours}. "
+    "If the client asks when the team works, or when they will get a reply, "
+    "state these working hours explicitly. Do not invent any other schedule."
+)
+
 # Per-category guidance mirrors the required agent behaviour from scenarios C-2..C-8.
 # Keys are Category values; the responder injects the matching instruction into the
 # system prompt so the LLM phrases the reply itself, in the client's own language.
