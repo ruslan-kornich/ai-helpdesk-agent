@@ -9,11 +9,14 @@ from app.repositories.ticket_repository import TicketRepository
 
 
 def build_snippet(messages: Sequence[Message], max_messages: int = 10) -> str:
+    """Join the first few messages into a short transcript stored on the ticket."""
     selected = list(messages)[:max_messages]
     return "\n".join(f"{message.role.value}: {message.text}" for message in selected)
 
 
 class TicketService:
+    """Resolves conversation sessions to tickets and writes agent results back onto them."""
+
     def __init__(self, ticket_repository: TicketRepository) -> None:
         self.ticket_repository = ticket_repository
 
@@ -40,6 +43,11 @@ class TicketService:
         window_minutes: int,
         channel_metadata: dict[str, Any] | None = None,
     ) -> Ticket:
+        """Return the ticket for this conversation, creating one if none is active.
+
+        Zendesk conversations are keyed by their ``zendesk_ticket_id``; other channels
+        reuse the client's last ticket while it stays within ``window_minutes``.
+        """
         if (
             channel == Channel.ZENDESK
             and channel_metadata
@@ -67,6 +75,7 @@ class TicketService:
         messages: Sequence[Message],
         channel_metadata: dict[str, Any] | None = None,
     ) -> Ticket:
+        """Copy the agent result onto the ticket and persist it, deriving a summary if absent."""
         ticket.category = result.category
         ticket.priority = result.priority
         ticket.sentiment = result.sentiment

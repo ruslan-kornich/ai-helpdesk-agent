@@ -7,6 +7,8 @@ from app.utils.websocket_manager import WebSocketManager
 
 
 class EscalationService:
+    """Logs escalations and broadcasts them to connected dashboards over WebSocket."""
+
     def __init__(self, websocket_manager: WebSocketManager, support_lead_channel: str) -> None:
         self.websocket_manager = websocket_manager
         self.support_lead_channel = support_lead_channel

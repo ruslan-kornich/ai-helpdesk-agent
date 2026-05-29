@@ -21,11 +21,14 @@ RECENT_HISTORY_LIMIT = 10
 
 
 def build_history(messages: Sequence[Message], limit: int = RECENT_HISTORY_LIMIT) -> str:
+    """Format the most recent turns as a newline-separated transcript for the agent prompt."""
     recent = messages[-limit:]
     return "\n".join(f"{message.role.value}: {message.text}" for message in recent)
 
 
 class ConversationService:
+    """Orchestrates a single inbound message: session lookup, agent run, persistence, delivery."""
+
     def __init__(
         self,
         session: AsyncSession,
@@ -47,6 +50,12 @@ class ConversationService:
         channel_metadata: dict[str, Any] | None = None,
         deliver: bool = True,
     ) -> tuple[str, Ticket]:
+        """Run the full inbound flow and return the agent reply with its ticket.
+
+        Resolves or opens a session, runs the agent pipeline, persists both messages,
+        escalates if needed, broadcasts the update, and delivers the reply unless
+        ``deliver`` is False (used by the simulator).
+        """
         logger.debug(
             "Incoming message | channel={channel} client_id={client_id} text={text!r}",
             channel=channel.value,

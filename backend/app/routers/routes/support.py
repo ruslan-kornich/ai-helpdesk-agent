@@ -20,6 +20,11 @@ router = APIRouter()
 async def support_chat(
     payload: SupportChatRequest, context: ContextDep
 ) -> SupportChatResponse:
+    """Relay a visitor message to Zendesk, reusing their ticket or opening a new one.
+
+    A stale ``zendesk_ticket_id`` (deleted or foreign ticket -> 404) triggers a fresh
+    ticket instead of failing the request.
+    """
     if "@" not in payload.email:
         raise BusinessError("A valid email is required", status_code=400)
     channel = context.channels[Channel.ZENDESK]

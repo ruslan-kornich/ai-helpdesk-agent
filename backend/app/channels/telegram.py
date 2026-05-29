@@ -33,6 +33,7 @@ _ERROR_FALLBACK_TEMPLATE = (
 
 
 async def _keep_typing(bot: Bot, chat_id: str) -> None:
+    """Refresh the typing indicator until cancelled, so it persists while the pipeline runs."""
     try:
         while True:
             await bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
@@ -44,6 +45,8 @@ async def _keep_typing(bot: Bot, chat_id: str) -> None:
 
 
 class TelegramChannel(BaseChannel):
+    """Sends agent replies to a Telegram chat; failures are logged, never raised."""
+
     channel = Channel.TELEGRAM
 
     def __init__(self, bot: Bot) -> None:
@@ -62,6 +65,7 @@ class TelegramChannel(BaseChannel):
 
 
 def build_telegram_dispatcher(handler: IncomingHandler) -> Dispatcher:
+    """Wire a dispatcher that answers /start statically and routes text messages to the handler."""
     dispatcher = Dispatcher()
 
     @dispatcher.message(CommandStart())

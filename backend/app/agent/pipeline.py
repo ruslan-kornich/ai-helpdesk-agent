@@ -24,6 +24,8 @@ class AgentResult:
 
 
 class AgentPipeline:
+    """Runs a message through analyze -> route -> respond and bundles the outcome."""
+
     def __init__(self, analyzer: Analyzer, responder: Responder, config: RouterConfig) -> None:
         self.analyzer = analyzer
         self.responder = responder
@@ -38,6 +40,7 @@ class AgentPipeline:
         persona: str = "",
         ticket_reference: str = "",
     ) -> AgentResult:
+        """Analyze the message, decide routing, generate a reply, and return the combined result."""
         analysis = await self.analyzer.analyze(text, history)
         decision = decide(analysis, now, self.config)
         logger.debug(

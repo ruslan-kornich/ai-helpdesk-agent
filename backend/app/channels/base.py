@@ -4,6 +4,8 @@ from app.models.enums import Channel
 
 
 class BaseChannel(ABC):
+    """Outbound interface every channel implements to deliver a reply to a client."""
+
     channel: Channel
 
     @abstractmethod

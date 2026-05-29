@@ -45,10 +45,13 @@ class AnalysisResult(BaseModel):
 
 
 class Analyzer:
+    """Classifies an incoming message via the LLM into category, sentiment, and entities."""
+
     def __init__(self, llm: LLMProvider) -> None:
         self.llm = llm
 
     async def analyze(self, text: str, history: str) -> AnalysisResult:
+        """Return the structured analysis, falling back to a neutral UNKNOWN result on LLM failure."""
         logger.debug(
             "Analyzer input | text={text!r} history_len={history_len}",
             text=text,

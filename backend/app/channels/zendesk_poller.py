@@ -11,6 +11,7 @@ InboundHandler = Callable[[ZendeskInbound], Awaitable[None]]
 
 
 def is_new_comment(metadata: dict | None, comment_id: str) -> bool:
+    """Return True when the comment id is newer than the last one recorded on the ticket."""
     if not metadata:
         return True
     last_seen = metadata.get("last_seen_comment_id")
@@ -20,6 +21,7 @@ def is_new_comment(metadata: dict | None, comment_id: str) -> bool:
 
 
 def map_ticket_fields(ticket: Ticket) -> ZendeskTicketFields:
+    """Derive Zendesk priority, tags, and status from the ticket's category and resolution."""
     tags = ["ai-helpdesk-agent", f"cat_{ticket.category.value}"]
     if ticket.escalation_target is not None:
         tags.append(f"esc_{ticket.escalation_target.value}")
@@ -28,6 +30,8 @@ def map_ticket_fields(ticket: Ticket) -> ZendeskTicketFields:
 
 
 class ZendeskPoller:
+    """Background loop that polls Zendesk for new requester comments and dispatches them."""
+
     def __init__(
         self,
         channel: ZendeskChannel,
@@ -40,6 +44,11 @@ class ZendeskPoller:
         self.watermark = datetime.now(UTC)
 
     async def poll_once(self) -> None:
+        """Fetch one batch since the watermark, dispatch requester-authored comments, advance it.
+
+        Comments authored by agents (author_id != requester_id) are skipped to avoid echoing
+        the bot's own replies back into the pipeline.
+        """
         cycle_start = datetime.now(UTC)
         inbounds = await self.channel.fetch_new_comments(self.watermark)
         for inbound in inbounds:

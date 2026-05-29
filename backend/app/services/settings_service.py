@@ -3,6 +3,8 @@ from app.repositories.settings_repository import SettingsRepository
 
 
 class SettingsService:
+    """Reads and updates the single application settings row, creating it on first access."""
+
     def __init__(self, settings_repository: SettingsRepository) -> None:
         self.settings_repository = settings_repository
 

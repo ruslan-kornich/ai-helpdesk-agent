@@ -41,12 +41,18 @@ _CATEGORY_RULES: dict[Category, tuple[Priority, EscalationTarget | None, AgentAc
 
 
 def is_after_hours(now: datetime, working_hours_start: int, working_hours_end: int) -> bool:
+    """Return True on weekends or outside the configured working-hours window."""
     if now.weekday() >= 5:
         return True
     return not (working_hours_start <= now.hour < working_hours_end)
 
 
 def decide(analysis: AnalysisResult, now: datetime, config: RouterConfig) -> RouterDecision:
+    """Map an analysis to priority, escalation, and action via fixed per-category rules.
+
+    Low-confidence analyses collapse to UNKNOWN; outside working hours every category
+    except OUTAGE becomes AFTER_HOURS and is held rather than answered.
+    """
     category = analysis.category
     if analysis.confidence < config.confidence_threshold:
         category = Category.UNKNOWN
