@@ -24,6 +24,13 @@ _WELCOME_MESSAGE = (
     "і я допоможу чи передам його спеціалісту."
 )
 
+# Sent to the client when handling their message fails, so they get a reply instead of
+# silence. {working_hours} is filled with the live working-hours label.
+_ERROR_FALLBACK_TEMPLATE = (
+    "Вітаю! Це AI-асистент підтримки Gatum. Виникла технічна помилка під час обробки "
+    "вашого звернення. Ми працюємо у {working_hours} і повернемося до вас якнайшвидше."
+)
+
 
 async def _keep_typing(bot: Bot, chat_id: str) -> None:
     try:

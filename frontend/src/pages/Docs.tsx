@@ -1043,8 +1043,8 @@ python -m app.cli report`}
               <ul className="mt-3 space-y-2 text-[15px] text-ink-soft">
                 <li>• Всього тикетів (по каналах і по днях).</li>
                 <li>
-                  • Розподіл за категоріями (how_to, billing, delivery_issue, commercial, outage,
-                  unknown, other).
+                  • Розподіл за категоріями (how_to, billing, delivery_issue, after_hours,
+                  commercial, outage, unknown, other).
                 </li>
                 <li>• % ескалацій і % вирішених AI.</li>
                 <li>• Розподіл тональності (positive / neutral / negative).</li>

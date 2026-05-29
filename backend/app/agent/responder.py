@@ -13,6 +13,7 @@ from app.agent.prompts import (
 from app.agent.router import AgentAction, RouterDecision
 from app.knowledge.retriever import Retriever
 from app.models.enums import Category
+from app.utils.time import format_working_hours
 
 _FALLBACK_HOWTO_REPLY = "Thanks for reaching out. I am passing your question to a specialist who will follow up shortly."
 
@@ -51,24 +52,17 @@ _CANNED_REPLIES: dict[Category, str] = {
 
 
 class Responder:
-    def __init__(
-        self,
-        llm: LLMProvider,
-        retriever: Retriever,
-        working_hours_start: int = 9,
-        working_hours_end: int = 18,
-        timezone: str = "Europe/Kyiv",
-    ) -> None:
+    def __init__(self, llm: LLMProvider, retriever: Retriever) -> None:
         self.llm = llm
         self.retriever = retriever
-        self.working_hours_start = working_hours_start
-        self.working_hours_end = working_hours_end
-        self.timezone = timezone
 
     async def build(
         self,
         decision: RouterDecision,
         text: str,
+        working_hours_start: int,
+        working_hours_end: int,
+        timezone: str,
         history: str = "",
         persona: str = "",
         ticket_reference: str = "",
@@ -76,18 +70,23 @@ class Responder:
         if decision.action == AgentAction.ANSWER and decision.category == Category.HOW_TO:
             return await self._answer_how_to(text, history, persona)
         return await self._acknowledge(
-            decision.category, text, history, persona, ticket_reference
-        )
-
-    def _working_hours_label(self) -> str:
-        return (
-            f"{self.working_hours_start:02d}:00-{self.working_hours_end:02d}:00 {self.timezone}"
+            decision.category,
+            text,
+            working_hours_start,
+            working_hours_end,
+            timezone,
+            history,
+            persona,
+            ticket_reference,
         )
 
     async def _acknowledge(
         self,
         category: Category,
         text: str,
+        working_hours_start: int,
+        working_hours_end: int,
+        timezone: str,
         history: str,
         persona: str,
         ticket_reference: str,
@@ -95,7 +94,9 @@ class Responder:
         fallback = _CANNED_REPLIES.get(category, _CANNED_REPLIES[Category.UNKNOWN])
         if category == Category.AFTER_HOURS:
             instruction = RESPONDER_AFTER_HOURS_INSTRUCTION.format(
-                working_hours=self._working_hours_label(),
+                working_hours=format_working_hours(
+                    working_hours_start, working_hours_end, timezone
+                ),
                 ticket_reference=ticket_reference or "your support ticket",
             )
         else:

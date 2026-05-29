@@ -49,7 +49,11 @@ class Analyzer:
         self.llm = llm
 
     async def analyze(self, text: str, history: str) -> AnalysisResult:
-        logger.debug("Analyzer input | text={text!r} history_len={history_len}", text=text, history_len=len(history))
+        logger.debug(
+            "Analyzer input | text={text!r} history_len={history_len}",
+            text=text,
+            history_len=len(history),
+        )
         user_prompt = ANALYZER_USER_TEMPLATE.format(history=history or "(none)", text=text)
         try:
             llm_result = await self.llm.complete_structured(
