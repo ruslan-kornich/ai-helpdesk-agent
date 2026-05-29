@@ -68,6 +68,18 @@ class TicketService:
             self._new_ticket(channel, client_id, {})
         )
 
+    async def reset_session(
+        self, channel: Channel, client_id: str, window_minutes: int
+    ) -> int:
+        """Expire the client's active session so the next message starts a new conversation.
+
+        Used by the ``/new`` Telegram command to imitate a fresh user without deleting
+        any chat history. Returns the number of sessions expired.
+        """
+        return await self.ticket_repository.expire_active_sessions(
+            client_id, channel, window_minutes
+        )
+
     async def apply_result(
         self,
         ticket: Ticket,

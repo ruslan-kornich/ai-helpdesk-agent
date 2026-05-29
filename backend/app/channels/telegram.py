@@ -3,7 +3,7 @@ from collections.abc import Awaitable, Callable
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatAction
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 from loguru import logger
 
@@ -11,6 +11,7 @@ from app.channels.base import BaseChannel
 from app.models.enums import Channel
 
 IncomingHandler = Callable[[str, str, dict], Awaitable[None]]
+ResetHandler = Callable[[str], Awaitable[None]]
 
 # Telegram clears the typing indicator after ~5s, so it must be refreshed
 # while the agent pipeline is still working on a reply.
@@ -22,6 +23,13 @@ _WELCOME_MESSAGE = (
     "Вітаю! Я AI-асистент підтримки Gatum. Опишіть, будь ласка, ваше питання — щодо "
     "розсилок, поповнення балансу, доставки повідомлень або технічних проблем, "
     "і я допоможу чи передам його спеціалісту."
+)
+
+# /new resets the conversation context so the next message opens a fresh ticket. Like
+# /start it is a client command, answered statically and never routed to the pipeline,
+# so it creates no ticket on its own.
+_RESET_MESSAGE = (
+    "Контекст очищено. Починаємо нову розмову — опишіть, будь ласка, ваше питання."
 )
 
 # Sent to the client when handling their message fails, so they get a reply instead of
@@ -64,8 +72,14 @@ class TelegramChannel(BaseChannel):
             )
 
 
-def build_telegram_dispatcher(handler: IncomingHandler) -> Dispatcher:
-    """Wire a dispatcher that answers /start statically and routes text messages to the handler."""
+def build_telegram_dispatcher(
+    handler: IncomingHandler, reset_handler: ResetHandler
+) -> Dispatcher:
+    """Wire a dispatcher that answers /start and /new statically and routes text to the handler.
+
+    Command handlers are registered before the catch-all text handler so aiogram matches
+    them first; this keeps /new from reaching the pipeline and creating a ticket.
+    """
     dispatcher = Dispatcher()
 
     @dispatcher.message(CommandStart())
@@ -73,6 +87,13 @@ def build_telegram_dispatcher(handler: IncomingHandler) -> Dispatcher:
         chat_id = str(message.chat.id)
         logger.info("Telegram /start from {chat}", chat=chat_id)
         await message.answer(_WELCOME_MESSAGE)
+
+    @dispatcher.message(Command("new"))
+    async def on_new_command(message: Message) -> None:
+        chat_id = str(message.chat.id)
+        logger.info("Telegram /new from {chat}", chat=chat_id)
+        await reset_handler(chat_id)
+        await message.answer(_RESET_MESSAGE)
 
     @dispatcher.message(F.text)
     async def on_text_message(message: Message) -> None:
