@@ -76,49 +76,21 @@ cd frontend && npm install && npm run dev    # :5173 with proxy to :8000
 
 ## Configuration (environment variables)
 
-All variables live in `.env` (copy from `.env.example`). Every one has a default, so the app
-**boots even with an empty `.env`** — but without `OPENAI_API_KEY` replies fall back to
-deterministic templates, and the default `JWT_SECRET` is insecure. Set the essentials for a
-real demo.
-
-**Essentials**
+Copy `.env.example` → `.env`. Every variable has a default, so the app **boots even with an
+empty `.env`** — but without `OPENAI_API_KEY` replies fall back to deterministic templates.
+Set these for a real demo:
 
 | Variable | Default | Notes |
 |----------|---------|-------|
 | `OPENAI_API_KEY` | _(empty)_ | Needed for live AI replies; empty → deterministic template fallback. |
 | `OPENAI_MODEL` | `gpt-4.1` | Model used by the analyzer/responder. |
-| `DATABASE_URL` | `postgresql+asyncpg://gatum:gatum@db:5432/gatum` | Async SQLAlchemy URL. Preset for the compose `db` service. |
+| `TELEGRAM_BOT_TOKEN` | _(empty)_ | From [@BotFather](https://t.me/BotFather); enables the in-process Telegram poller. Leave empty to disable. |
+| `ZENDESK_SUBDOMAIN` / `ZENDESK_EMAIL` / `ZENDESK_API_TOKEN` | _(empty)_ | Optional — enables the Zendesk inbound poller. Leave empty to disable (no crash). |
+| `DATABASE_URL` | `postgresql+asyncpg://…@db:5432/gatum` | Async SQLAlchemy URL; preset for the compose `db` service. |
 | `JWT_SECRET` | `CHANGE_ME` | **Change for any non-local use** — signs admin-panel auth tokens. |
 
-**Postgres container** (used by the `db` service in `docker-compose.yml`)
-
-| Variable | Default | Notes |
-|----------|---------|-------|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `gatum` / `gatum` / `gatum` | Must match the credentials in `DATABASE_URL`. |
-
-**Optional integrations** (leave empty to disable — the channel is treated as unavailable, no crash)
-
-| Variable | Default | Notes |
-|----------|---------|-------|
-| `TELEGRAM_BOT_TOKEN` | _(empty)_ | From [@BotFather](https://t.me/BotFather); enables the in-process Telegram poller. |
-| `ZENDESK_SUBDOMAIN` | _(empty)_ | The `xxx` in `xxx.zendesk.com`. |
-| `ZENDESK_EMAIL` | _(empty)_ | Zendesk account email for API auth. |
-| `ZENDESK_API_TOKEN` | _(empty)_ | API token from Admin Center → APIs. |
-| `ZENDESK_POLL_INTERVAL_SECONDS` | `15` | How often the inbound poller checks for new comments. |
-| `SUPPORT_LEAD_CHANNEL` | _(empty)_ | Where C-8 complaint notifications are flagged. |
-
-**Behavior tuning & auth**
-
-| Variable | Default | Notes |
-|----------|---------|-------|
-| `WORKING_HOURS_START` / `WORKING_HOURS_END` | `9` / `18` | Business hours (24h); drives the `after_hours` category. |
-| `TIMEZONE` | `Europe/Kyiv` | Timezone for working-hours checks. |
-| `SESSION_WINDOW_MINUTES` | `30` | Window for appending to an existing ticket vs. opening a new one. |
-| `CONFIDENCE_THRESHOLD` | `0.55` | Below this, intent routes to `unknown` (C-7). |
-| `LOG_LEVEL` | `INFO` | loguru sink level. |
-| `JWT_ALGORITHM` | `HS256` | Token signing algorithm. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Access-token lifetime. |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh-token lifetime. |
+The full list — Postgres credentials, working hours, timezone, confidence threshold, token
+lifetimes — lives in [`.env.example`](.env.example) with sensible defaults.
 
 ## Architecture
 
