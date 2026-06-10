@@ -1,245 +1,122 @@
-# ai-helpdesk-agent
+<h1 align="center">AI Helpdesk Agent</h1>
 
-Multichannel AI support agent for the Gatum SMS/SMPP platform. Connects to Telegram and
-Zendesk (real), mocks WhatsApp/Teams through an in-app simulator, handles 8 support
-scenarios, records a structured ticket per conversation, escalates to the right specialist,
-and reports analytics. Ships with a React admin panel.
+<p align="center">
+  Multichannel AI support agent for an SMS/SMPP platform — classifies incoming messages,
+  answers from a knowledge base, opens structured tickets, escalates to the right specialist
+  and reports analytics. Ships with a React admin panel.
+</p>
 
-## Prerequisites
-- Docker + Docker Compose
-- (Optional, for local dev) `uv` and Node.js 20+
-- An OpenAI API key (for live AI replies; the app still runs without one — replies fall back
-  to deterministic templates)
-- (Optional) A Telegram bot token and a Zendesk trial account
+<p align="center">
+  <img src="https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12" />
+  <img src="https://img.shields.io/badge/frontend-React%2018-61DAFB?logo=react&logoColor=black" alt="React 18" />
+  <img src="https://img.shields.io/badge/database-PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/LLM-OpenAI-412991?logo=openai&logoColor=white" alt="OpenAI" />
+  <img src="https://img.shields.io/badge/deploy-Docker%20Compose-2496ED?logo=docker&logoColor=white" alt="Docker" />
+</p>
 
-## One-command run
+---
+
+## Features
+
+| Feature | Description |
+|---|---|
+| **Channels** | Telegram bot and Zendesk (real, long-polling — no public URL needed), WhatsApp/Teams via an in-app simulator. All channels share one agent pipeline. |
+| **AI pipeline** | One structured LLM call does classification, entity extraction and sentiment; routing is deterministic pure logic. Without an API key, replies fall back to templates. |
+| **Tickets** | One structured ticket per conversation session, with category, priority, extracted entities and escalation target. |
+| **Escalation** | 8 support scenarios routed to finance, sales, L2 support or the support lead; urgent outages escalate immediately, even after hours. |
+| **Admin panel** | React dashboard with live conversations (WebSocket), ticket browser, analytics charts and editable agent settings (working hours, persona). |
+| **Analytics** | Resolution rate, category/priority breakdowns — in the UI and via `make report` in the CLI. |
+
+## Support scenarios
+
+| Trigger | Category | Priority | Escalation |
+|---|---|---|---|
+| How to use the platform | `how_to` | normal | — (AI-resolved) |
+| Top-up balance / wallet | `billing` | normal | finance |
+| Undelivered SMS report | `delivery_issue` | high | L2 support |
+| Message outside working hours | `after_hours` | normal | morning queue |
+| Pricing / commercial request | `commercial` | normal | sales |
+| Outage / API error | `outage` | urgent | L2 support (immediate) |
+| Unrecognized intent | `unknown` | normal | general support |
+| Service complaint | `other` | high | support lead |
+
+## Quick start
+
 ```bash
-cp .env.example .env        # then fill in OPENAI_API_KEY (and optionally Telegram/Zendesk)
-make run                    # docker compose up --build
+cp .env.example .env    # fill in OPENAI_API_KEY (and optionally Telegram/Zendesk)
+make run                # docker compose up --build
 ```
-Open http://localhost:8000 — the admin panel, REST API, WebSocket, and (if a token is set)
-the in-process Telegram bot all run in the single `app` container. PostgreSQL runs as the
-`db` container with a persistent named volume.
 
-- Create an admin user: `make create-user` (prompts for email + password, like Django's
-  `createsuperuser`; re-running with an existing email resets that user's password)
-- Analytics from the CLI: `make report`
-- Load demo tickets: `make seed`
-- Run unit tests (host): `make test`
-
-<details>
-<summary>Without <code>make</code> (Windows, or any machine without GNU Make)</summary>
-
-The `make` targets are thin wrappers over `docker compose`. Run these directly instead:
+Open http://localhost:8000 — the admin panel, REST API, WebSocket and the Telegram bot
+(if a token is set) run in a single `app` container; PostgreSQL runs as the `db` container.
 
 ```bash
-cp .env.example .env                # then fill in OPENAI_API_KEY
-
-docker compose up --build           # = make run    (start app + db)
-docker compose down                 # = make down   (stop everything)
-docker compose build                # = make build  (rebuild images only)
-
-docker compose exec app uv run python -m app.cli report    # = make report
-docker compose exec app uv run python -m app.seed          # = make seed
-docker compose exec app uv run python -m app.create_user   # = make create-user
-
-cd backend && uv run pytest -v      # = make test   (runs on host, needs uv)
+make create-user        # create an admin user (email + password)
+make seed               # load demo tickets
+make report             # analytics from the CLI
+make test               # run unit tests (host, needs uv)
 ```
 
-The `exec` commands require the stack to be already running (`docker compose up`).
-</details>
+Without `make`, each target is a thin wrapper over `docker compose` — e.g.
+`docker compose up --build` or `docker compose exec app uv run python -m app.cli report`.
 
-### Getting a Telegram token
-Message [@BotFather](https://t.me/BotFather), `/newbot`, copy the token into
-`TELEGRAM_BOT_TOKEN`. Long-polling is used, so no public URL/tunnel is needed.
+## Configuration
 
-### Zendesk trial setup
-Create a free Zendesk trial. In Admin Center → Apps and integrations → APIs → Zendesk API,
-enable token access and create an API token. Set `ZENDESK_SUBDOMAIN` (the `xxx` in
-`xxx.zendesk.com`), `ZENDESK_EMAIL`, and `ZENDESK_API_TOKEN`. If unset, Zendesk is treated as
-unavailable (logged warning, no crash). `ZENDESK_POLL_INTERVAL_SECONDS` controls how often the
-poller checks for new comments (default: 15 seconds).
+Every variable has a default, so the app boots even with an empty `.env`:
 
-At runtime, an in-process poller (started in the FastAPI lifespan alongside the Telegram poller)
-polls Zendesk for new requester comments, runs each through the agent pipeline, and posts the reply
-plus updated priority/tags/status back onto the same ticket. No public tunnel is needed — the same
-approach as Telegram long-polling.
+| Variable | Notes |
+|---|---|
+| `OPENAI_API_KEY` | Enables live AI replies; empty → deterministic template fallback. |
+| `TELEGRAM_BOT_TOKEN` | From [@BotFather](https://t.me/BotFather); enables the in-process Telegram poller. |
+| `ZENDESK_SUBDOMAIN` / `ZENDESK_EMAIL` / `ZENDESK_API_TOKEN` | Enables the Zendesk inbound poller; replies and priority/tags are posted back to the ticket. |
+| `DATABASE_URL` | Async SQLAlchemy URL; preset for the compose `db` service. |
+| `JWT_SECRET` | Signs admin-panel auth tokens — change for any non-local use. |
 
-To open a ticket for the demo, the message must be authored by the ticket requester (the bot skips
-agent and bot comments). Supported inputs: the Help Center **"submit a request"** form, email-to-
-ticket, or an API-created ticket on the requester's behalf. The messaging Web Widget is not
-compatible — it creates conversations, not classic ticket comments.
+The full list (working hours, timezone, confidence threshold, token lifetimes) lives in
+[`.env.example`](.env.example).
 
-### Local dev (no Docker)
+## Architecture
+
+```
+  Telegram ─┐
+  Zendesk  ─┼─► conversation_service ─► agent pipeline ─► PostgreSQL
+  Simulator┘         │                  (analyzer · router · responder)
+                     ▼
+              WebSocket broadcast ─► React admin panel
+```
+
+Layered (onion) backend: `models → repositories → schemas → services → routers`, with side
+modules `agent/` (pure, no DB), `channels/` (infra adapters) and `knowledge/` (FAQ retriever).
+
+- **Single LLM call + pure router** — classification, entities and sentiment in one structured
+  OpenAI call; routing is a fully unit-tested pure function.
+- **In-process pollers** — Telegram and Zendesk long-polling run inside the FastAPI lifespan;
+  no broker or public tunnel needed.
+- **Provider abstractions** — a thin `LLMProvider` ABC and a `Retriever` ABC allow swapping
+  the model or dropping in a vector store with no agent changes.
+- **Sessions** — a new message from the same client within 30 minutes appends to the existing
+  ticket; Zendesk tickets map 1:1 to internal tickets instead.
+
+## Repository layout
+
+```
+.
+├── backend/            # FastAPI app — SQLAlchemy 2.0 async, agent pipeline, channels
+│   ├── app/
+│   │   ├── agent/      # analyzer · router · responder (pure, no DB)
+│   │   ├── channels/   # Telegram bot, Zendesk poller, simulator
+│   │   ├── services/   # conversation, ticket, escalation, analytics
+│   │   └── ...         # models, repositories, schemas, routers
+│   └── tests/
+├── frontend/           # React 18 admin panel — TypeScript, Vite, Tailwind CSS v4
+├── docker-compose.yml  # app + PostgreSQL
+└── Makefile
+```
+
+## Local development (no Docker)
+
 ```bash
 cd backend && uv sync && uv run uvicorn app.main:app --port 8000
 cd frontend && npm install && npm run dev    # :5173 with proxy to :8000
 ```
-
-## Configuration (environment variables)
-
-Copy `.env.example` → `.env`. Every variable has a default, so the app **boots even with an
-empty `.env`** — but without `OPENAI_API_KEY` replies fall back to deterministic templates.
-Set these for a real demo:
-
-| Variable | Default | Notes |
-|----------|---------|-------|
-| `OPENAI_API_KEY` | _(empty)_ | Needed for live AI replies; empty → deterministic template fallback. |
-| `OPENAI_MODEL` | `gpt-4.1` | Model used by the analyzer/responder. |
-| `TELEGRAM_BOT_TOKEN` | _(empty)_ | From [@BotFather](https://t.me/BotFather); enables the in-process Telegram poller. Leave empty to disable. |
-| `ZENDESK_SUBDOMAIN` / `ZENDESK_EMAIL` / `ZENDESK_API_TOKEN` | _(empty)_ | Optional — enables the Zendesk inbound poller. Leave empty to disable (no crash). |
-| `DATABASE_URL` | `postgresql+asyncpg://…@db:5432/gatum` | Async SQLAlchemy URL; preset for the compose `db` service. |
-| `JWT_SECRET` | `CHANGE_ME` | **Change for any non-local use** — signs admin-panel auth tokens. |
-
-The full list — Postgres credentials, working hours, timezone, confidence threshold, token
-lifetimes — lives in [`.env.example`](.env.example) with sensible defaults.
-
-## Architecture
-
-```mermaid
-flowchart TD
-  subgraph Channels["Channels (infra adapters)"]
-    TG[Telegram bot] --> CS
-    SIM[Simulator / mock WhatsApp+Teams] --> CS
-    ZD[Zendesk inbound poller] --> CS
-  end
-
-  subgraph Services["Services (orchestration)"]
-    CS[conversation_service]
-    TS[ticket_service]
-    ES[escalation_service]
-  end
-
-  subgraph Agent["agent/ (pure, no DB)"]
-    AP[agent.pipeline]
-    AN[analyzer · 1 GPT-4o call]
-    RT[router · pure logic]
-    RS[responder + retriever]
-  end
-
-  subgraph Persistence["Persistence"]
-    TR[(ticket_repository)]
-    MR[(message_repository)]
-    DB[(PostgreSQL)]
-  end
-
-  CS --> TS
-  CS --> ES
-  CS --> ZD
-  CS --> AP
-  AP --> AN
-  AP --> RT
-  AP --> RS
-  CS --> TR
-  CS --> MR
-  TR --> DB
-  MR --> DB
-  CS --> WS[[WebSocket broadcast]]
-  WS --> UI[React admin]
-
-  classDef external fill:#e7f0ff,stroke:#4577c9,color:#1c2e4a;
-  classDef store fill:#eafaf0,stroke:#3a9d6a,color:#143527;
-  class TG,SIM,ZD,UI external;
-  class TR,MR,DB store;
-```
-
-Layered (onion) dependency flow: `models → repositories → schemas → services → routers`, with
-side modules `agent/` (pure, no DB), `channels/` (infra adapters), `knowledge/` (retriever),
-and `utils/` (generic repository, exceptions, WebSocket manager, timestamp mixin). The
-`agent.router` is a pure function and is the most heavily unit-tested unit.
-
-## Architecture Decision Records (ADR)
-
-- **FastAPI** — async-first, matches the WebSocket + Telegram polling workload and gives typed
-  request/response models for free.
-- **uv** — fast, reproducible installs via `uv.lock`; one tool for venv + deps; used locally
-  and in the Dockerfile (`uv sync --frozen`).
-- **PostgreSQL (asyncpg) + SQLAlchemy async as primary store** — closest to a real production
-  deployment, native `jsonb` for the ticket `metadata`, proper concurrency for live WS/Telegram
-  traffic, runs as a compose service with a persistent volume. The engine is built from a single
-  `DATABASE_URL`, so unit tests fall back to in-memory SQLite (aiosqlite) for fast, dependency-free
-  CI. The only dialect-sensitive surfaces — the JSON column and string UUIDs — are portable across
-  both.
-- **Async SQLAlchemy** — consistent with async FastAPI + Telegram polling; no sync/async bridging.
-- **Single merged analyzer + pure router** (over multi-agent) — one structured GPT-4o call does
-  classification + entity extraction + sentiment, cutting latency and cost; routing is deterministic
-  pure logic, fully unit-testable and free.
-- **OpenAI structured outputs behind our own `LLMProvider`** (over an agent framework like pydantic-ai)
-  — the analyzer parses straight into a validated pydantic `AnalysisResult` via the native
-  structured-outputs API (`beta.chat.completions.parse`), eliminating manual JSON/enum coercion. We keep
-  our own thin `LLMProvider` ABC rather than adopting an agent framework: it satisfies the spec's
-  provider-abstraction requirement, keeps the dependency surface small, and leaves the routing logic in
-  our own testable pure function instead of a framework's control flow. Domain carriers that are built by
-  our own code (`RouterDecision`, `AgentResult`, `AppContext`) stay dataclasses — pydantic adds value only
-  at the LLM boundary where untrusted data enters.
-- **Layered (onion) architecture** — strict one-directional dependencies keep services unit-testable
-  (inject a mock repository) and routes trivial.
-- **Keyword retriever** — sufficient for the prototype FAQ; the `Retriever` ABC allows a drop-in
-  vector store (Chroma/FAISS) with no agent changes.
-- **Mock WhatsApp/Teams** — Business/Teams approval takes time; the simulator exercises every
-  scenario through the same pipeline. Telegram + Zendesk satisfy the two-real-channel requirement.
-- **After-hours modeling** — `after_hours` is its own category for non-urgent messages outside
-  09:00–18:00 (Mon–Fri); urgent outage (C-6) still escalates immediately at night. A `was_after_hours`
-  flag is stored in metadata for analytics regardless of final category.
-- **Telegram in-process (not a separate worker)** — the polling loop runs in the FastAPI lifespan,
-  sharing the pipeline and WebSocket broadcaster in-memory; no broker needed. Extracting it into its
-  own container is the documented scaling path, not needed now.
-- **Zendesk inbound polling (not webhook/trigger push)** — no public tunnel needed locally,
-  consistent with the Telegram long-polling decision; the poller runs in-process in the FastAPI
-  lifespan exactly like the Telegram poller.
-- **Zendesk Approach A (in-memory `updated_at` watermark + persisted per-ticket
-  `last_seen_comment_id` cursor)** over Approach B (Incremental Export cursor API) — simpler to
-  implement for a prototype; the persisted cursor de-duplicates already-answered comments across
-  restarts. Approach B (Incremental Export) is the documented scaling path.
-- **One Zendesk ticket maps to one internal ticket** via `zendesk_ticket_id` in metadata —
-  bypasses the 30-minute session window used by other channels because a Zendesk ticket is a
-  long-lived thread, not a 30-minute session.
-- **Loop prevention via `author_id == requester_id`** — the bot processes only comments authored
-  by the ticket requester, skipping its own replies and human agents' comments without requiring a
-  `users/me.json` lookup.
-- **Accepted prototype limitation** — a comment arriving strictly during a restart (its
-  `updated_at` falls before the new in-memory watermark) may be missed until the ticket is next
-  updated; day-granularity search re-fetches are harmless because the persisted comment cursor
-  de-duplicates already-answered comments.
-- **`general_support` escalation target** — extends the assignment's enum so C-7 routes to a non-null
-  target, keeping the `resolved_by_ai` invariant clean (C-7 reads as escalated, not AI-resolved).
-- **C-6 priority = `urgent`** (not the literal "high") — the scenario demands "escalate immediately"
-  and "confirm urgency"; `high` is reserved for C-8.
-- **fastapi-pagination** — ready-made `Page[T]` + SQLAlchemy integration keeps list/history endpoints
-  uniform; the repository owns `paginate` with a transformer mapping ORM rows → Read schemas.
-- **loguru** — zero-boilerplate structured logging over stdlib `logging`; one configured sink.
-- **Error model** — expected business failures raise `BusinessError` (mapped to JSON by a registered
-  handler); unexpected ones are caught/logged with full context by the `catch_errors` decorator.
-- **Backend layout** — `config/` package, `routers/api.py` aggregator, `utils/` generic repository +
-  WebSocket manager, `create_app()` factory — follows the team's established conventions.
-- **Testing strategy** — the deterministic core is unit-tested (`test_router.py`,
-  `test_analytics_service.py`, `test_ticket_repository.py`, plus `test_conversation_service.py`,
-  `test_ticket_service.py`, `test_retriever.py`); the non-deterministic LLM pipeline is exercised
-  manually via the Simulator rather than asserted, to keep CI fast and stable.
-- **Conversation lifecycle** — one ticket per session; a new message from the same client within 30
-  minutes appends to the existing ticket, otherwise a new ticket opens.
-- **Admin panel + editable settings** — the React admin and the Settings page are our own additions
-  (the assignment requires neither a UI nor editable settings); they make the demo and scenario
-  walkthrough far easier. Working hours/timezone/agent-persona are held in-memory on `AppContext` and
-  applied live: working hours mutate the shared `router_config`; the persona is read per message and
-  passed into the responder, so editing it changes the agent's tone immediately. The persona deliberately
-  affects only the how_to LLM replies — the classifier prompt stays fixed (a bad edit must not break
-  routing) and canned escalation replies stay fixed (guardrails: never quote prices, never hallucinate).
-  Cross-restart persistence is out of scope for the prototype.
-
-## Scenario handling
-
-| # | Trigger | Handling | Category | Priority | Escalation |
-|---|---------|----------|----------|----------|------------|
-| C-1 | How to use the platform | Answer grounded in FAQ | how_to | normal | — (AI-resolved) |
-| C-2 | Top-up balance / wallet | Top-up steps + ask for confirmation | billing | normal | finance |
-| C-3 | Undelivered SMS report | Collect phone/time/sender ID; confirm; pass to L2 | delivery_issue | high | l2_support |
-| C-4 | Outside working hours | Immediate ack + ticket; morning queue | after_hours | normal | — (human queue) |
-| C-5 | Pricing / commercial | Acknowledge; sales will contact; never states prices | commercial | normal | sales |
-| C-6 | Outage / API error | Ask error/time/IP; escalate immediately | outage | urgent | l2_support |
-| C-7 | Unrecognized intent | Pass to specialist; never hallucinate | unknown | normal | general_support |
-| C-8 | Service complaint | Detect negative sentiment; flag + notify lead | other | high | support_lead |
-
-## Demo video
-3–5 min video (mandatory): _add link here_. Shows app launch, ≥4 scenarios end-to-end via the
-Simulator, the created ticket record, and `make report` analytics.
